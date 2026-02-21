@@ -1,0 +1,145 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: -apple-system, 'SF Pro Text', 'SF Pro', system-ui, 'Helvetica Neue', Helvetica, 'Segoe UI', Roboto, sans-serif;
+}
+
+:root {
+  /* Browser fallbacks for Telegram CSS vars (Telegram's JS will override these when inside WebView) */
+  --tg-theme-bg-color: #ffffff;
+  --tg-theme-text-color: #000000;
+  --tg-theme-hint-color: #999999;
+  --tg-theme-link-color: #2481cc;
+  --tg-theme-button-color: #2481cc;
+  --tg-theme-button-text-color: #ffffff;
+  --tg-theme-secondary-bg-color: #f0f0f0;
+
+  --store-accent: var(--tg-theme-link-color);
+  --store-success: #31b545;
+  --store-warning: #e8a427;
+  --store-badge-bg: #e53e3e;
+  --store-badge-text: #ffffff;
+  --store-price-old: var(--tg-theme-hint-color);
+  --store-price-sale: #e53e3e;
+  --store-skeleton: var(--tg-theme-secondary-bg-color);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html, body, #root {
+  height: 100%;
+  overflow-x: hidden;
+}
+
+body {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--tg-theme-text-color, #000000);
+  background-color: var(--tg-theme-bg-color, #ffffff);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overscroll-behavior-y: contain;
+}
+
+a {
+  color: var(--tg-theme-link-color, #2481cc);
+  text-decoration: none;
+}
+
+input, textarea, select, button {
+  font-family: inherit;
+  font-size: inherit;
+}
+
+img {
+  max-width: 100%;
+  display: block;
+}
+
+/* Skeleton pulse animation */
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.skeleton-pulse {
+  animation: skeleton-pulse 1.5s ease-in-out infinite;
+}
+
+/* Badge bounce animation */
+@keyframes badge-bounce {
+  0% { transform: scale(0); }
+  50% { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+
+.badge-bounce {
+  animation: badge-bounce 300ms ease-out;
+}
+
+/* Slide up animation for bottom sheets */
+@keyframes slide-up {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+.slide-up {
+  animation: slide-up 250ms ease-out;
+}
+
+/* Fade in animation */
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.fade-in {
+  animation: fade-in 150ms ease-out;
+}
+
+/* Toast slide down */
+@keyframes toast-slide-down {
+  from { transform: translateY(-100%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.toast-slide-down {
+  animation: toast-slide-down 200ms ease-out;
+}
+
+/* Page transition: fade in for new pages */
+@keyframes page-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.page-enter {
+  animation: page-fade-in 150ms ease-out;
+}
+
+/* Heart favorite animation */
+@keyframes heart-pop {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.3); }
+  100% { transform: scale(1); }
+}
+
+.heart-pop {
+  animation: heart-pop 300ms ease-out;
+}
+
+/* Scrollbar hide for horizontal scroll */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
