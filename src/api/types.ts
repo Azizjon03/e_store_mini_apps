@@ -12,7 +12,7 @@ export interface User {
 // Categories
 export interface Category {
   id: number;
-  name: string;
+  name: LocalizedString;
   slug: string;
   icon?: string;
   image?: string;
@@ -28,21 +28,30 @@ export interface ProductVariant {
   image?: string;
 }
 
+export type LocalizedString = string | Record<string, string>;
+
 export interface Product {
   id: number;
-  name: string;
+  name: LocalizedString;
   slug: string;
-  description?: string;
-  category_id: number;
+  description?: LocalizedString;
+  sku?: string;
+  category_id: number | string;
+  brand_id?: number | string;
   price: number;
   old_price?: number;
+  compare_price?: number;
   discount_percent?: number;
+  discount_percentage?: number;
+  has_discount?: boolean;
+  currency?: string;
   image?: string;
+  thumbnail?: string | null;
   images?: string[];
-  rating: number;
-  reviews_count: number;
-  in_stock: boolean;
-  stock_quantity: number;
+  rating?: number;
+  reviews_count?: number;
+  in_stock?: boolean;
+  stock_quantity?: number;
   variants?: ProductVariant[];
   attributes?: Record<string, string>;
 }
@@ -197,11 +206,21 @@ export interface ApiResponse<T> {
 
 export interface PaginatedResponse<T> {
   data: T[];
-  pagination: {
+  meta: {
     current_page: number;
     per_page: number;
     total: number;
-    total_pages: number;
+    last_page: number;
+    from: number | null;
+    to: number | null;
+    path: string;
+    links: Array<{ url: string | null; label: string; active: boolean }>;
+  };
+  links: {
+    first: string;
+    last: string;
+    prev: string | null;
+    next: string | null;
   };
 }
 

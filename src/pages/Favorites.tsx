@@ -4,7 +4,7 @@ import { getFavorites, removeFromFavorites } from '@/api/storefront';
 import { PageLayout } from '@/components/layout/PageLayout';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Skeleton } from '@/components/ui/Skeleton';
-import { formatPrice } from '@/lib/format';
+import { formatPrice, t } from '@/lib/format';
 import { useHaptic } from '@/hooks/useHaptic';
 import { useCartStore } from '@/store/cartStore';
 import { showToast } from '@/lib/toast';
@@ -69,7 +69,7 @@ export default function Favorites() {
               <div className="flex-1 min-w-0 flex flex-col justify-between">
                 <div>
                   <p className="text-sm font-medium line-clamp-2" style={{ color: 'var(--tg-theme-text-color)' }}>
-                    {product.name}
+                    {t(product.name)}
                   </p>
                   <div className="flex items-baseline gap-1.5 mt-1">
                     <span className="text-sm font-semibold" style={{ color: 'var(--tg-theme-text-color)' }}>

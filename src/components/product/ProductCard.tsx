@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { Product } from '@/api/types';
-import { formatPrice } from '@/lib/format';
+import { formatPrice, t } from '@/lib/format';
 import { useCartStore } from '@/store/cartStore';
 import { useHaptic } from '@/hooks/useHaptic';
 import { useFavorite } from '@/hooks/useFavorite';
@@ -53,7 +53,7 @@ export function ProductCard({ product }: ProductCardProps) {
         {product.image ? (
           <img
             src={product.image}
-            alt={product.name}
+            alt={t(product.name)}
             className="w-full h-full object-cover"
             loading="lazy"
           />
@@ -64,9 +64,9 @@ export function ProductCard({ product }: ProductCardProps) {
         )}
 
         {/* Discount badge */}
-        {product.discount_percent && product.discount_percent > 0 && (
+        {(product.discount_percent || product.discount_percentage || 0) > 0 && (
           <span className="absolute top-2 left-2 px-1.5 py-0.5 rounded-[6px] text-[11px] font-semibold text-white bg-[var(--store-price-sale)]">
-            -{product.discount_percent}%
+            -{product.discount_percent || product.discount_percentage}%
           </span>
         )}
 
@@ -89,19 +89,19 @@ export function ProductCard({ product }: ProductCardProps) {
           className="text-sm leading-[18px] line-clamp-2"
           style={{ color: 'var(--tg-theme-text-color)' }}
         >
-          {product.name}
+          {t(product.name)}
         </p>
 
         <div className="flex items-baseline gap-1.5">
           <span className="text-[15px] font-semibold" style={{ color: 'var(--tg-theme-text-color)' }}>
             {formatPrice(product.price)}
           </span>
-          {product.old_price && (
+          {(product.old_price || product.compare_price) && (
             <span
               className="text-xs line-through"
               style={{ color: 'var(--store-price-old)' }}
             >
-              {formatPrice(product.old_price)}
+              {formatPrice((product.old_price || product.compare_price)!)}
             </span>
           )}
         </div>

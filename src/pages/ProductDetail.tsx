@@ -2,7 +2,7 @@ import { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { getProductDetail } from '@/api/storefront';
-import { formatPrice, formatDate } from '@/lib/format';
+import { formatPrice, formatDate, t } from '@/lib/format';
 import { useCartStore } from '@/store/cartStore';
 import { useMainButton } from '@/hooks/useMainButton';
 import { useHaptic } from '@/hooks/useHaptic';
@@ -153,7 +153,7 @@ export default function ProductDetail() {
               <img
                 key={i}
                 src={img}
-                alt={product.name}
+                alt={t(product.name)}
                 className="min-w-full h-full object-cover"
                 loading={i === 0 ? 'eager' : 'lazy'}
               />
@@ -204,7 +204,7 @@ export default function ProductDetail() {
           className="text-[20px] font-semibold leading-6 mb-2"
           style={{ color: 'var(--tg-theme-text-color)' }}
         >
-          {product.name}
+          {t(product.name)}
         </h1>
 
         {/* Rating */}

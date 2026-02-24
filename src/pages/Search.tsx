@@ -193,7 +193,7 @@ export default function Search() {
                 className="text-sm py-2"
                 style={{ color: 'var(--tg-theme-hint-color)' }}
               >
-                Natijalar ({results?.pagination.total ?? products.length})
+                Natijalar ({results?.meta.total ?? products.length})
               </p>
               <div className="grid grid-cols-2 gap-2 pb-4">
                 {products.map((product) => (

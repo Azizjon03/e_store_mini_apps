@@ -6,7 +6,7 @@ import { useMainButton } from '@/hooks/useMainButton';
 import { useHaptic } from '@/hooks/useHaptic';
 import { PageLayout } from '@/components/layout/PageLayout';
 import { EmptyState } from '@/components/ui/EmptyState';
-import { formatPrice } from '@/lib/format';
+import { formatPrice, t } from '@/lib/format';
 import { applyPromoCode, removePromoCode as removePromoApi } from '@/api/storefront';
 
 export default function Cart() {
@@ -90,7 +90,7 @@ export default function Cart() {
                 onClick={() => navigate(`/product/${item.product.slug}`)}
               >
                 {item.product.image ? (
-                  <img src={item.product.image} alt={item.product.name} className="w-full h-full object-cover" />
+                  <img src={item.product.image} alt={t(item.product.name)} className="w-full h-full object-cover" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center">📷</div>
                 )}
@@ -102,7 +102,7 @@ export default function Cart() {
                   style={{ color: 'var(--tg-theme-text-color)' }}
                   onClick={() => navigate(`/product/${item.product.slug}`)}
                 >
-                  {item.product.name}
+                  {t(item.product.name)}
                 </p>
                 {item.variant && (
                   <p className="text-xs" style={{ color: 'var(--tg-theme-hint-color)' }}>

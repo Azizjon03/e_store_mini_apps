@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import type { Category } from '@/api/types';
 import { useHaptic } from '@/hooks/useHaptic';
+import { t } from '@/lib/format';
 
 interface CategoryChipsProps {
   categories: Category[];
@@ -32,7 +33,7 @@ export function CategoryChips({ categories }: CategoryChipsProps) {
             {cat.image && !cat.icon && (
               <img src={cat.image} alt="" className="w-5 h-5 rounded-full object-cover" />
             )}
-            <span>{cat.name}</span>
+            <span>{t(cat.name)}</span>
           </button>
         ))}
       </div>

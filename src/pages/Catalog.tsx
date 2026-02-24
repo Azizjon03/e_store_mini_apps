@@ -10,6 +10,7 @@ import { ProductCardSkeleton } from '@/components/ui/Skeleton';
 import { BottomSheet } from '@/components/ui/BottomSheet';
 import { EmptyState } from '@/components/ui/EmptyState';
 import type { ProductFilters } from '@/api/types';
+import { t } from '@/lib/format';
 
 type SortOption = ProductFilters['sort'];
 
@@ -139,7 +140,7 @@ export default function Catalog() {
                 }}
               >
                 {cat.icon && <span>{cat.icon}</span>}
-                {cat.name}
+                {t(cat.name)}
               </button>
             ))}
           </div>

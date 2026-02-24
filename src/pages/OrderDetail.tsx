@@ -1,7 +1,7 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getOrderDetail, reorderProducts } from '@/api/storefront';
-import { formatPrice, formatDateTime } from '@/lib/format';
+import { formatPrice, formatDateTime, t } from '@/lib/format';
 import { useHaptic } from '@/hooks/useHaptic';
 import { showToast } from '@/lib/toast';
 import { Spinner } from '@/components/ui/Spinner';
@@ -175,7 +175,7 @@ export default function OrderDetail() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm line-clamp-1" style={{ color: 'var(--tg-theme-text-color)' }}>
-                    {item.product.name}
+                    {t(item.product.name)}
                   </p>
                   {item.variant && (
                     <p className="text-xs" style={{ color: 'var(--tg-theme-hint-color)' }}>

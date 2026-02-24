@@ -14,19 +14,19 @@ import type {
   ProductFilters,
 } from './types';
 
-// Init
+// Init (public)
 export const getStoreConfig = () =>
   apiClient.get<{ data: StoreConfig }>('/init').then((r) => r.data.data);
 
-// Home
+// Home (public)
 export const getHomeData = () =>
   apiClient.get<{ data: HomeData }>('/home').then((r) => r.data.data);
 
-// Categories
+// Categories (public)
 export const getCategories = () =>
   apiClient.get<{ data: Category[] }>('/categories').then((r) => r.data.data);
 
-// Products
+// Products (public)
 export const getProducts = (params: ProductFilters) =>
   apiClient
     .get<PaginatedResponse<Product>>('/products', { params })
@@ -37,7 +37,7 @@ export const getProductDetail = (slug: string) =>
     .get<{ data: ProductDetail }>(`/products/${slug}`)
     .then((r) => r.data.data);
 
-// Search
+// Search (public)
 export const searchProducts = (query: string, page = 1) =>
   apiClient
     .get<PaginatedResponse<Product>>('/search', { params: { q: query, page } })
@@ -48,89 +48,97 @@ export const getPopularSearches = () =>
     .get<{ data: string[] }>('/search/popular')
     .then((r) => r.data.data);
 
-// Cart
+// Cart (authenticated — tg/ prefix)
 export const getCart = () =>
-  apiClient.get<{ data: Cart }>('/cart').then((r) => r.data.data);
+  apiClient.get<{ data: Cart }>('/tg/cart').then((r) => r.data.data);
 
 export const addToCart = (data: {
-  product_id: number;
+  product_id: string;
   quantity: number;
-  variant_id?: number;
-}) => apiClient.post<{ data: Cart }>('/cart', data).then((r) => r.data.data);
+  variant_name?: string;
+  unit_price: number;
+  name: string;
+  thumbnail?: string;
+  slug?: string;
+}) => apiClient.post('/tg/cart/add', data).then((r) => r.data);
 
-export const updateCartItem = (itemId: string, quantity: number) =>
+export const updateCartItem = (data: {
+  product_id: string;
+  quantity: number;
+  variant_name?: string;
+}) => apiClient.put('/tg/cart/update', data).then((r) => r.data);
+
+export const removeCartItem = (data: {
+  product_id: string;
+  variant_name?: string;
+}) => apiClient.delete('/tg/cart/remove', { data }).then((r) => r.data);
+
+export const applyPromoCode = (code: string, order_amount?: number) =>
   apiClient
-    .put<{ data: Cart }>(`/cart/${itemId}`, { quantity })
-    .then((r) => r.data.data);
-
-export const removeCartItem = (itemId: string) =>
-  apiClient.delete<{ data: Cart }>(`/cart/${itemId}`).then((r) => r.data.data);
-
-export const applyPromoCode = (code: string) =>
-  apiClient
-    .post<{ data: { cart: Cart; promo: PromoCode } }>('/cart/promo', { code })
+    .post<{ data: { promo: PromoCode } }>('/tg/cart/promo', { code, order_amount })
     .then((r) => r.data.data);
 
 export const removePromoCode = () =>
-  apiClient.delete<{ data: Cart }>('/cart/promo').then((r) => r.data.data);
+  apiClient.delete('/tg/cart/promo').then((r) => r.data);
 
-// Checkout
+// Checkout (authenticated — tg/ prefix)
 export const checkout = (data: {
-  address_id: number;
+  address_id?: number;
+  shipping_address?: { full_address: string; lat?: number; lng?: number };
   delivery_method: 'delivery' | 'pickup';
   payment_method: 'click' | 'payme' | 'cash';
   notes?: string;
   promo_code?: string;
 }) =>
   apiClient
-    .post<{ data: { order: Order; payment_url?: string } }>('/checkout', data)
+    .post<{ data: { order: Order; payment_url?: string } }>('/tg/checkout', data)
     .then((r) => r.data.data);
 
-// Orders
+// Orders (authenticated — tg/ prefix)
 export const getOrders = (page = 1) =>
   apiClient
-    .get<PaginatedResponse<Order>>('/orders', { params: { page } })
+    .get<PaginatedResponse<Order>>('/tg/orders', { params: { page } })
     .then((r) => r.data);
 
 export const getOrderDetail = (id: number) =>
   apiClient
-    .get<{ data: OrderDetail }>(`/orders/${id}`)
+    .get<{ data: OrderDetail }>(`/tg/orders/${id}`)
     .then((r) => r.data.data);
 
 export const reorderProducts = (orderId: number) =>
   apiClient
-    .post<{ data: Cart }>(`/orders/${orderId}/reorder`)
+    .post<{ data: Cart }>(`/tg/orders/${orderId}/reorder`)
     .then((r) => r.data.data);
 
-// Profile
+// Profile (authenticated — tg/ prefix)
 export const getProfile = () =>
-  apiClient.get<{ data: { user: { id: number; first_name: string; last_name?: string; username?: string; photo_url?: string } } }>('/profile').then((r) => r.data.data);
+  apiClient.get<{ data: { id: number; first_name: string; last_name?: string; username?: string; photo_url?: string; phone?: string; email?: string } }>('/tg/profile').then((r) => r.data.data);
 
-// Addresses
+// Addresses (authenticated — tg/ prefix)
 export const getAddresses = () =>
-  apiClient.get<{ data: Address[] }>('/addresses').then((r) => r.data.data);
+  apiClient.get<{ data: Address[] }>('/tg/addresses').then((r) => r.data.data);
 
 export const createAddress = (
   data: Omit<Address, 'id' | 'user_id' | 'created_at'>,
 ) =>
   apiClient
-    .post<{ data: Address }>('/addresses', data)
+    .post<{ data: Address }>('/tg/addresses', data)
     .then((r) => r.data.data);
 
 export const updateAddress = (id: number, data: Partial<Address>) =>
   apiClient
-    .put<{ data: Address }>(`/addresses/${id}`, data)
+    .put<{ data: Address }>(`/tg/addresses/${id}`, data)
     .then((r) => r.data.data);
 
 export const deleteAddress = (id: number) =>
-  apiClient.delete(`/addresses/${id}`);
+  apiClient.delete(`/tg/addresses/${id}`);
 
-// Favorites
+// Favorites (authenticated — tg/ prefix)
 export const getFavorites = () =>
-  apiClient.get<{ data: Product[] }>('/favorites').then((r) => r.data.data);
+  apiClient.get<{ data: Product[] }>('/tg/favorites').then((r) => r.data.data);
 
-export const addToFavorites = (productId: number) =>
-  apiClient.post(`/favorites/${productId}`);
+export const addToFavorites = (productId: string) =>
+  apiClient.post(`/tg/favorites/${productId}`);
 
-export const removeFromFavorites = (productId: number) =>
-  apiClient.delete(`/favorites/${productId}`);
+export const removeFromFavorites = (productId: string) =>
+  apiClient.delete(`/tg/favorites/${productId}`);
