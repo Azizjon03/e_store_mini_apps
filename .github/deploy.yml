@@ -1,0 +1,24 @@
+
+name: Deploy Shop App
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to server
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd /var/www/estore/e_store_mini_apps
+            git pull origin main
+            npm install
+            npm run build
+            echo "Shop app deployed!"
+EOF
