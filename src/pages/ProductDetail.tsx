@@ -208,7 +208,7 @@ export default function ProductDetail() {
         </h1>
 
         {/* Rating */}
-        {product.reviews_count > 0 && (
+        {(product.reviews_count ?? 0) > 0 && (
           <div className="flex items-center gap-1 mb-3">
             <span className="text-sm">⭐ {product.rating}</span>
             <span className="text-sm" style={{ color: 'var(--tg-theme-hint-color)' }}>
@@ -295,7 +295,7 @@ export default function ProductDetail() {
                 className={`text-sm leading-5 ${!descExpanded ? 'line-clamp-3' : ''}`}
                 style={{ color: 'var(--tg-theme-text-color)' }}
               >
-                {product.full_description || product.description}
+                {t(product.full_description || product.description)}
               </p>
               {!descExpanded && (
                 <button

@@ -21,7 +21,7 @@ export default function Favorites() {
   });
 
   const removeMutation = useMutation({
-    mutationFn: (productId: number) => removeFromFavorites(productId),
+    mutationFn: (productId: number) => removeFromFavorites(String(productId)),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['favorites'] });
       haptic.notification('success');

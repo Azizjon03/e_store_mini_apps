@@ -18,7 +18,7 @@ export function useFavorite(productId: number) {
   useEffect(() => { isFavoriteRef.current = isFavorite; });
 
   const toggleMutation = useMutation({
-    mutationFn: () => (isFavoriteRef.current ? removeFromFavorites(productId) : addToFavorites(productId)),
+    mutationFn: () => (isFavoriteRef.current ? removeFromFavorites(String(productId)) : addToFavorites(String(productId))),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['favorites'] });
       haptic.impact('light');
