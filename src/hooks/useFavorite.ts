@@ -2,6 +2,7 @@ import { useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getFavorites, addToFavorites, removeFromFavorites } from '@/api/storefront';
 import { useHaptic } from './useHaptic';
+import { showToast } from '@/lib/toast';
 
 export function useFavorite(productId: number) {
   const queryClient = useQueryClient();
@@ -22,6 +23,10 @@ export function useFavorite(productId: number) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['favorites'] });
       haptic.impact('light');
+    },
+    onError: () => {
+      showToast('error', 'Xatolik yuz berdi');
+      haptic.notification('error');
     },
   });
 

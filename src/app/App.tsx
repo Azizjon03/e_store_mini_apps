@@ -2,10 +2,14 @@ import { useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
 import { initTelegram, getTelegramUser } from '@/lib/telegram';
 import { useAuthStore } from '@/store/authStore';
+import { useAppStore } from '@/store/appStore';
 import { useBackButton } from '@/hooks/useBackButton';
+import { getStoreConfig } from '@/api/storefront';
 
 export function App() {
   const setUser = useAuthStore((s) => s.setUser);
+  const setStoreConfig = useAppStore((s) => s.setStoreConfig);
+  const setLoading = useAppStore((s) => s.setLoading);
 
   useEffect(() => {
     initTelegram();
@@ -21,7 +25,12 @@ export function App() {
         is_premium: user.is_premium,
       });
     }
-  }, [setUser]);
+
+    getStoreConfig()
+      .then((config) => setStoreConfig(config))
+      .catch(() => { /* store config is optional, app works without it */ })
+      .finally(() => setLoading(false));
+  }, [setUser, setStoreConfig, setLoading]);
 
   useBackButton();
 

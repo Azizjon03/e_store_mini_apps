@@ -20,11 +20,13 @@ apiClient.interceptors.request.use((config) => {
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    const config = error.config;
+    if (error.response?.status === 401 && !config._retried) {
+      config._retried = true;
       const initData = window.Telegram?.WebApp?.initData;
       if (initData) {
-        error.config.headers.Authorization = `tma ${initData}`;
-        return apiClient.request(error.config);
+        config.headers.Authorization = `tma ${initData}`;
+        return apiClient.request(config);
       }
     }
     return Promise.reject(error);
