@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
 import { initTelegram, getTelegramUser } from '@/lib/telegram';
 import { useAuthStore } from '@/store/authStore';
@@ -6,12 +6,71 @@ import { useAppStore } from '@/store/appStore';
 import { useBackButton } from '@/hooks/useBackButton';
 import { getStoreConfig } from '@/api/storefront';
 
+function WelcomeScreen({ onEnter }: { onEnter: () => void }) {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100vh',
+        backgroundColor: 'var(--tg-theme-bg-color)',
+        color: 'var(--tg-theme-text-color)',
+      }}
+    >
+      <div
+        style={{
+          flex: 1,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <h1
+          style={{
+            fontSize: 28,
+            fontWeight: 700,
+            color: 'var(--tg-theme-text-color)',
+          }}
+        >
+          Welcome E-Store
+        </h1>
+      </div>
+
+      <div
+        style={{
+          padding: '16px 16px 32px',
+        }}
+      >
+        <button
+          onClick={onEnter}
+          style={{
+            width: '100%',
+            padding: '14px 0',
+            borderRadius: 12,
+            border: 'none',
+            backgroundColor: 'var(--tg-theme-button-color)',
+            color: 'var(--tg-theme-button-text-color)',
+            fontSize: 16,
+            fontWeight: 600,
+            cursor: 'pointer',
+          }}
+        >
+          Kirish
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export function App() {
+  const [entered, setEntered] = useState(false);
   const setUser = useAuthStore((s) => s.setUser);
   const setStoreConfig = useAppStore((s) => s.setStoreConfig);
   const setLoading = useAppStore((s) => s.setLoading);
 
   useEffect(() => {
+    if (!entered) return;
+
     initTelegram();
     const user = getTelegramUser();
     if (user) {
@@ -30,9 +89,13 @@ export function App() {
       .then((config) => setStoreConfig(config))
       .catch(() => { /* store config is optional, app works without it */ })
       .finally(() => setLoading(false));
-  }, [setUser, setStoreConfig, setLoading]);
+  }, [entered, setUser, setStoreConfig, setLoading]);
 
   useBackButton();
+
+  if (!entered) {
+    return <WelcomeScreen onEnter={() => setEntered(true)} />;
+  }
 
   return <Outlet />;
 }
