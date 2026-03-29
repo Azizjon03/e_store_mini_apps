@@ -9,7 +9,9 @@ export function t(value: string | Record<string, string> | undefined, lang = 'uz
 }
 
 export function formatPrice(price: number): string {
-  return price.toLocaleString('uz-UZ') + " so'm";
+  const rounded = Math.round(price);
+  const formatted = rounded.toLocaleString('ru-RU');
+  return formatted + " so'm";
 }
 
 export function formatDate(dateString: string): string {

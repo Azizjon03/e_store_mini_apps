@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 import type { HomeSection, Banner } from '@/api/types';
 import { ProductSection } from '@/components/product/ProductSection';
 
@@ -20,7 +21,7 @@ function getSectionLink(section: HomeSection): string | undefined {
 }
 
 export function HomeSections({ sections, bannersMid }: HomeSectionsProps) {
-  // Insert mid-banner after 3rd section if exists
+  const navigate = useNavigate();
   const hasMidBanner = bannersMid && bannersMid.length > 0;
 
   return (
@@ -31,11 +32,23 @@ export function HomeSections({ sections, bannersMid }: HomeSectionsProps) {
             title={section.title}
             products={section.products}
             linkTo={getSectionLink(section)}
+            layout={section.layout}
           />
 
-          {/* Mid-page banner after 3rd section */}
-          {hasMidBanner && index === 2 && (
-            <div className="mx-4 my-3 rounded-[12px] overflow-hidden" style={{ height: 100 }}>
+          {/* Mid-page promo banner after 2nd section */}
+          {hasMidBanner && index === 1 && (
+            <div
+              className="mx-4 my-2 overflow-hidden cursor-pointer press-effect"
+              style={{
+                borderRadius: 'var(--storex-radius-lg)',
+                height: 100,
+              }}
+              onClick={() => {
+                const b = bannersMid[0];
+                if (b.link_type === 'product' && b.link_value) navigate(`/product/${b.link_value}`);
+                else if (b.link_type === 'category' && b.link_value) navigate(`/catalog/${b.link_value}`);
+              }}
+            >
               <img
                 src={bannersMid[0].image}
                 alt={bannersMid[0].title}
@@ -44,6 +57,9 @@ export function HomeSections({ sections, bannersMid }: HomeSectionsProps) {
               />
             </div>
           )}
+
+          {/* Divider between sections */}
+          {index < sections.length - 1 && <div className="storex-divider" />}
         </div>
       ))}
     </div>

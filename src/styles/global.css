@@ -5,25 +5,54 @@
 }
 
 :root {
-  /* Browser fallbacks for Telegram CSS vars (Telegram's JS will override these when inside WebView) */
+  /* Telegram CSS vars (JS will override inside WebView) */
   --tg-theme-bg-color: #ffffff;
-  --tg-theme-text-color: #000000;
-  --tg-theme-hint-color: #999999;
-  --tg-theme-link-color: #2481cc;
-  --tg-theme-button-color: #2481cc;
+  --tg-theme-text-color: #1a1a2e;
+  --tg-theme-hint-color: #8e8e93;
+  --tg-theme-link-color: #1976D2;
+  --tg-theme-button-color: #1976D2;
   --tg-theme-button-text-color: #ffffff;
-  --tg-theme-secondary-bg-color: #f0f0f0;
+  --tg-theme-secondary-bg-color: #f5f5f8;
 
-  --store-accent: var(--tg-theme-link-color);
-  --store-success: #31b545;
-  --store-warning: #e8a427;
-  --store-badge-bg: #e53e3e;
-  --store-badge-text: #ffffff;
-  --store-price-old: var(--tg-theme-hint-color);
-  --store-price-sale: #e53e3e;
-  --store-skeleton: var(--tg-theme-secondary-bg-color);
+  /* StoreX design tokens — brand colors come from /init API */
+  --storex-primary: var(--tg-theme-button-color, #1976D2);
+  --storex-primary-light: color-mix(in srgb, var(--storex-primary) 10%, transparent);
+  --storex-primary-medium: color-mix(in srgb, var(--storex-primary) 20%, transparent);
+  --storex-primary-dark: color-mix(in srgb, var(--storex-primary) 85%, #000);
+  --storex-gradient: linear-gradient(135deg, var(--storex-primary), #42a5f5);
+
+  --storex-success: #22c55e;
+  --storex-warning: #f59e0b;
+  --storex-danger: #ef4444;
+  --storex-info: #3b82f6;
+
+  --storex-badge-bg: #ef4444;
+  --storex-badge-text: #ffffff;
+  --storex-price-old: var(--tg-theme-hint-color);
+  --storex-price-sale: #ef4444;
+  --storex-skeleton: var(--tg-theme-secondary-bg-color);
+
+  /* Borders */
+  --storex-border: rgba(0, 0, 0, 0.08);
+  --storex-border-active: var(--storex-primary);
+  --storex-border-card: 1px solid rgba(0, 0, 0, 0.06);
+
+  /* Elevation / shadows */
+  --storex-shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
+  --storex-shadow-md: 0 2px 8px rgba(0,0,0,0.08);
+  --storex-shadow-lg: 0 4px 16px rgba(0,0,0,0.12);
+  --storex-shadow-card: 0 1px 3px rgba(0,0,0,0.06), 0 0 0 1px rgba(0,0,0,0.04);
+
+  /* Spacing */
+  --storex-radius-xs: 6px;
+  --storex-radius-sm: 8px;
+  --storex-radius-md: 12px;
+  --storex-radius-lg: 16px;
+  --storex-radius-xl: 20px;
+  --storex-radius-full: 9999px;
 }
 
+/* ========== BASE RESET ========== */
 * {
   margin: 0;
   padding: 0;
@@ -34,13 +63,21 @@
 html, body, #root {
   height: 100%;
   overflow-x: hidden;
+  max-width: 100vw;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+html::-webkit-scrollbar,
+body::-webkit-scrollbar,
+#root::-webkit-scrollbar {
+  display: none;
 }
 
 body {
   font-family: var(--font-sans);
   font-size: 14px;
-  line-height: 20px;
-  color: var(--tg-theme-text-color, #000000);
+  line-height: 1.5;
+  color: var(--tg-theme-text-color, #1a1a2e);
   background-color: var(--tg-theme-bg-color, #ffffff);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -48,7 +85,7 @@ body {
 }
 
 a {
-  color: var(--tg-theme-link-color, #2481cc);
+  color: var(--storex-primary);
   text-decoration: none;
 }
 
@@ -62,84 +99,170 @@ img {
   display: block;
 }
 
-/* Skeleton pulse animation */
+/* ========== ANIMATIONS ========== */
 @keyframes skeleton-pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.4; }
 }
-
 .skeleton-pulse {
   animation: skeleton-pulse 1.5s ease-in-out infinite;
 }
 
-/* Badge bounce animation */
 @keyframes badge-bounce {
   0% { transform: scale(0); }
   50% { transform: scale(1.2); }
   100% { transform: scale(1); }
 }
-
 .badge-bounce {
   animation: badge-bounce 300ms ease-out;
 }
 
-/* Slide up animation for bottom sheets */
 @keyframes slide-up {
   from { transform: translateY(100%); }
   to { transform: translateY(0); }
 }
-
 .slide-up {
   animation: slide-up 250ms ease-out;
 }
 
-/* Fade in animation */
 @keyframes fade-in {
   from { opacity: 0; }
   to { opacity: 1; }
 }
-
 .fade-in {
   animation: fade-in 150ms ease-out;
 }
 
-/* Toast slide down */
 @keyframes toast-slide-down {
   from { transform: translateY(-100%); opacity: 0; }
   to { transform: translateY(0); opacity: 1; }
 }
-
 .toast-slide-down {
   animation: toast-slide-down 200ms ease-out;
 }
 
-/* Page transition: fade in for new pages */
 @keyframes page-fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
 }
-
 .page-enter {
-  animation: page-fade-in 150ms ease-out;
+  animation: page-fade-in 200ms ease-out;
 }
 
-/* Heart favorite animation */
 @keyframes heart-pop {
   0% { transform: scale(1); }
   50% { transform: scale(1.3); }
   100% { transform: scale(1); }
 }
-
 .heart-pop {
   animation: heart-pop 300ms ease-out;
 }
 
-/* Scrollbar hide for horizontal scroll */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.shimmer {
+  background: linear-gradient(90deg, var(--storex-skeleton) 25%, rgba(255,255,255,0.3) 50%, var(--storex-skeleton) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+@keyframes count-up {
+  from { transform: translateY(8px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+.count-up {
+  animation: count-up 300ms ease-out;
+}
+
+@keyframes float-in {
+  from { opacity: 0; transform: scale(0.95) translateY(4px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+.float-in {
+  animation: float-in 200ms ease-out;
+}
+
+/* ========== UTILITIES ========== */
 .scrollbar-hide {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
-
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
+}
+
+/* StoreX gradient text */
+.storex-gradient-text {
+  background: var(--storex-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* StoreX card style */
+.storex-card {
+  background-color: var(--tg-theme-bg-color);
+  border-radius: var(--storex-radius-md);
+  border: var(--storex-border-card);
+  box-shadow: var(--storex-shadow-sm);
+}
+
+/* Chip / pill button */
+.storex-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 14px;
+  border-radius: var(--storex-radius-full);
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: all 150ms ease;
+  border: 1.5px solid var(--storex-border);
+  background-color: var(--tg-theme-bg-color);
+  color: var(--tg-theme-text-color);
+}
+.storex-chip.active {
+  background-color: var(--storex-primary);
+  border-color: var(--storex-primary);
+  color: #fff;
+}
+.storex-chip:not(.active):hover {
+  border-color: var(--storex-primary);
+}
+
+/* Section header */
+.storex-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  margin-bottom: 12px;
+}
+.storex-section-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--tg-theme-text-color);
+}
+.storex-section-link {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--storex-primary);
+}
+
+/* Divider */
+.storex-divider {
+  height: 8px;
+  background-color: var(--tg-theme-secondary-bg-color);
+}
+
+/* Active press effect */
+.press-effect {
+  transition: transform 150ms ease, opacity 150ms ease;
+}
+.press-effect:active {
+  transform: scale(0.97);
+  opacity: 0.9;
 }

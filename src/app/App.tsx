@@ -27,12 +27,15 @@ function WelcomeScreen({ onEnter }: { onEnter: () => void }) {
       >
         <h1
           style={{
-            fontSize: 28,
-            fontWeight: 700,
-            color: 'var(--tg-theme-text-color)',
+            fontSize: 32,
+            fontWeight: 800,
+            background: 'linear-gradient(135deg, var(--tg-theme-button-color, #7B2FBE), #a855f7)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            letterSpacing: '-0.5px',
           }}
         >
-          Welcome E-Store
+          StoreX
         </h1>
       </div>
 
@@ -48,8 +51,8 @@ function WelcomeScreen({ onEnter }: { onEnter: () => void }) {
             padding: '14px 0',
             borderRadius: 12,
             border: 'none',
-            backgroundColor: 'var(--tg-theme-button-color)',
-            color: 'var(--tg-theme-button-text-color)',
+            background: 'linear-gradient(135deg, var(--tg-theme-button-color, #7B2FBE), #a855f7)',
+            color: '#fff',
             fontSize: 16,
             fontWeight: 600,
             cursor: 'pointer',

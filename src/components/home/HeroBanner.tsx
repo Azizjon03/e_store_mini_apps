@@ -19,7 +19,6 @@ export function HeroBanner({ banners }: HeroBannerProps) {
     [banners.length],
   );
 
-  // Auto-play every 4 seconds
   useEffect(() => {
     if (banners.length <= 1) return;
     intervalRef.current = setInterval(() => {
@@ -51,10 +50,10 @@ export function HeroBanner({ banners }: HeroBannerProps) {
   if (banners.length === 0) return null;
 
   return (
-    <div className="relative mx-4 mt-2 mb-3">
+    <div className="relative mx-4 mt-2 mb-1">
       <div
-        className="relative overflow-hidden rounded-[12px]"
-        style={{ height: 160 }}
+        className="relative overflow-hidden"
+        style={{ height: 180, borderRadius: 'var(--storex-radius-lg)' }}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
       >
@@ -65,7 +64,7 @@ export function HeroBanner({ banners }: HeroBannerProps) {
           {banners.map((banner) => (
             <div
               key={banner.id}
-              className="min-w-full h-full flex-shrink-0 cursor-pointer"
+              className="min-w-full h-full flex-shrink-0 cursor-pointer relative"
               onClick={() => handleClick(banner)}
               style={{ backgroundColor: 'var(--tg-theme-secondary-bg-color)' }}
             >
@@ -75,31 +74,39 @@ export function HeroBanner({ banners }: HeroBannerProps) {
                 className="w-full h-full object-cover"
                 loading="lazy"
               />
+              {/* Gradient overlay */}
+              <div
+                className="absolute inset-0"
+                style={{ background: 'linear-gradient(to right, rgba(0,0,0,0.4) 0%, transparent 60%)' }}
+              />
+              {/* Banner title */}
+              <div className="absolute bottom-4 left-4 right-16">
+                <h3 className="text-white text-lg font-bold leading-tight drop-shadow-sm">
+                  {banner.title}
+                </h3>
+              </div>
             </div>
           ))}
         </div>
-      </div>
 
-      {/* Dots */}
-      {banners.length > 1 && (
-        <div className="flex items-center justify-center gap-1.5 mt-2">
-          {banners.map((_, i) => (
-            <button
-              key={i}
-              className="rounded-full transition-all duration-200"
-              style={{
-                width: i === current ? 16 : 6,
-                height: 6,
-                backgroundColor:
-                  i === current
-                    ? 'var(--tg-theme-button-color, #2481cc)'
-                    : 'var(--tg-theme-hint-color, #ccc)',
-              }}
-              onClick={() => goTo(i)}
-            />
-          ))}
-        </div>
-      )}
+        {/* Dots */}
+        {banners.length > 1 && (
+          <div className="absolute bottom-3 right-3 flex items-center gap-1">
+            {banners.map((_, i) => (
+              <button
+                key={i}
+                className="rounded-full transition-all duration-300"
+                style={{
+                  width: i === current ? 16 : 5,
+                  height: 5,
+                  backgroundColor: i === current ? '#fff' : 'rgba(255,255,255,0.5)',
+                }}
+                onClick={() => goTo(i)}
+              />
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

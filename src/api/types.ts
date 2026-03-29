@@ -16,6 +16,7 @@ export interface Category {
   slug: string;
   icon?: string;
   image?: string;
+  color?: string;
 }
 
 // Products
@@ -88,6 +89,8 @@ export interface Cart {
   discount?: number;
   promo_code?: string;
   delivery_cost: number;
+  free_delivery_remaining?: number;
+  estimated_delivery?: string;
 }
 
 export interface PromoCode {
@@ -129,12 +132,21 @@ export interface Order {
   updated_at: string;
 }
 
+export interface OrderTrackDriver {
+  name: string;
+  phone: string;
+}
+
 export interface OrderTrack {
   status: string;
   timestamp: string;
-  description: string;
+  description?: string;
+  title?: string;
+  completed?: boolean;
   location?: string;
   driver_phone?: string;
+  driver?: OrderTrackDriver;
+  estimated_delivery?: string;
 }
 
 export interface Address {
@@ -145,6 +157,8 @@ export interface Address {
   district: string;
   full_address: string;
   landmark?: string;
+  lat?: number;
+  lng?: number;
   is_primary: boolean;
   created_at: string;
 }
@@ -153,6 +167,9 @@ export interface OrderDetail extends Order {
   shipping_address: Address;
   delivery_method: 'delivery' | 'pickup';
   payment_method: 'click' | 'payme' | 'cash';
+  payment_method_name?: string;
+  payment_method_icon?: string;
+  estimated_delivery?: string;
   notes?: string;
   tracking: OrderTrack[];
 }
@@ -173,6 +190,13 @@ export interface HomeSection {
   title: string;
   category_slug?: string;
   products: Product[];
+  layout?: 'grid' | 'horizontal';
+}
+
+export interface FlashSale {
+  title: string;
+  ends_at: string;
+  products: Product[];
 }
 
 export interface HomeData {
@@ -180,20 +204,42 @@ export interface HomeData {
   banners_mid?: Banner[];
   categories: Category[];
   sections: HomeSection[];
+  flash_sale?: FlashSale;
 }
 
 // Store Config
+export interface DeliveryInfo {
+  free_delivery_from: number;
+  min_order_amount: number;
+  delivery_cost: number;
+}
+
+export interface PickupPoint {
+  id: number;
+  name: string;
+  address: string;
+  lat: number;
+  lng: number;
+  working_hours: string;
+}
+
 export interface StoreConfig {
   company_id: number;
   company_name: string;
   logo: string;
   accent_color: string;
   primary_color: string;
+  secondary_color?: string;
   theme: 'light' | 'dark';
   languages: string[];
   currency: string;
+  currency_symbol?: string;
   phone: string;
   email: string;
+  social_links?: Record<string, string>;
+  delivery_info?: DeliveryInfo;
+  working_hours?: string;
+  pickup_points?: PickupPoint[];
 }
 
 // API Responses
@@ -222,6 +268,52 @@ export interface PaginatedResponse<T> {
     prev: string | null;
     next: string | null;
   };
+}
+
+// Delivery slots
+export interface DeliverySlot {
+  id: number;
+  time: string;
+  available: boolean;
+}
+
+export interface DeliverySlotResponse {
+  today?: DeliverySlot[];
+  tomorrow?: DeliverySlot[];
+}
+
+// Payment methods
+export interface PaymentMethodOption {
+  id: string;
+  name: string;
+  icon: string;
+  available: boolean;
+}
+
+// Product filter options
+export interface FilterOptions {
+  price_range: { min: number; max: number };
+  brands: Array<{ id: number; name: string; count: number }>;
+  categories: Array<{ id: number; name: string; slug: string; count: number }>;
+  attributes?: Array<{ name: string; values: string[] }>;
+}
+
+// Profile with stats
+export interface ProfileStats {
+  orders_count: number;
+  favorites_count: number;
+  addresses_count: number;
+}
+
+export interface Profile {
+  id: number;
+  first_name: string;
+  last_name?: string;
+  username?: string;
+  photo_url?: string;
+  phone?: string;
+  email?: string;
+  stats?: ProfileStats;
 }
 
 // Filter params

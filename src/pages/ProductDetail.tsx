@@ -6,6 +6,7 @@ import { formatPrice, formatDate, t } from '@/lib/format';
 import { useCartStore } from '@/store/cartStore';
 import { useMainButton } from '@/hooks/useMainButton';
 import { useHaptic } from '@/hooks/useHaptic';
+import { useBackButton } from '@/hooks/useBackButton';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { ProductCard } from '@/components/product/ProductCard';
 import { useFavorite } from '@/hooks/useFavorite';
@@ -18,16 +19,15 @@ export default function ProductDetail() {
   const addItem = useCartStore((s) => s.addItem);
   const cartItems = useCartStore((s) => s.items);
 
+  useBackButton();
+
   const [currentImage, setCurrentImage] = useState(0);
-  const [selectedVariants, setSelectedVariants] = useState<
-    Record<string, ProductVariant>
-  >({});
+  const [selectedVariants, setSelectedVariants] = useState<Record<string, ProductVariant>>({});
   const [descExpanded, setDescExpanded] = useState(false);
   const [justAdded, setJustAdded] = useState(false);
   const addedTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const touchStartX = useRef(0);
 
-  // Cleanup timeout on unmount
   useEffect(() => {
     return () => {
       if (addedTimerRef.current) clearTimeout(addedTimerRef.current);
@@ -44,41 +44,29 @@ export default function ProductDetail() {
 
   const images = product?.images?.length ? product.images : product?.image ? [product.image] : [];
 
-  // Check if variants need to be selected
   const variantTypes = useMemo(
     () => product?.variants ? [...new Set(product.variants.map((v) => v.type))] : [],
     [product],
   );
   const allVariantsSelected = variantTypes.every((type) => selectedVariants[type]);
 
-  // Check if already in cart
   const selectedVariant = Object.values(selectedVariants)[0];
   const cartItemId = selectedVariant
     ? `${product?.id}:${selectedVariant.id}`
     : `${product?.id}`;
   const inCart = cartItems.find((i) => i.id === cartItemId);
 
-  // Price with variant extra
   const currentPrice = product
-    ? product.price +
-      Object.values(selectedVariants).reduce(
-        (sum, v) => sum + (v.extra_price ?? 0),
-        0,
-      )
+    ? product.price + Object.values(selectedVariants).reduce((sum, v) => sum + (v.extra_price ?? 0), 0)
     : 0;
 
   const handleAddToCart = useCallback(() => {
     if (!product) return;
-
-    if (variantTypes.length > 0 && !allVariantsSelected) {
-      return;
-    }
-
+    if (variantTypes.length > 0 && !allVariantsSelected) return;
     if (inCart) {
       navigate('/cart');
       return;
     }
-
     addItem(product, 1, selectedVariant);
     haptic.impact('medium');
     setJustAdded(true);
@@ -86,7 +74,6 @@ export default function ProductDetail() {
     addedTimerRef.current = setTimeout(() => setJustAdded(false), 1500);
   }, [product, variantTypes, allVariantsSelected, inCart, addItem, selectedVariant, haptic, navigate]);
 
-  // MainButton
   const mainButtonText = !product?.in_stock
     ? 'Hozirda mavjud emas'
     : variantTypes.length > 0 && !allVariantsSelected
@@ -104,30 +91,29 @@ export default function ProductDetail() {
     onClick: handleAddToCart,
   });
 
-  // Swipe handlers for gallery
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartX.current = e.touches[0].clientX;
   };
   const handleTouchEnd = (e: React.TouchEvent) => {
     const diff = touchStartX.current - e.changedTouches[0].clientX;
     if (Math.abs(diff) > 50 && images.length > 1) {
-      if (diff > 0 && currentImage < images.length - 1) {
-        setCurrentImage(currentImage + 1);
-      } else if (diff < 0 && currentImage > 0) {
-        setCurrentImage(currentImage - 1);
-      }
+      if (diff > 0 && currentImage < images.length - 1) setCurrentImage(currentImage + 1);
+      else if (diff < 0 && currentImage > 0) setCurrentImage(currentImage - 1);
     }
   };
+
+  const discountPercent = product?.discount_percent || product?.discount_percentage || 0;
 
   if (isLoading) {
     return (
       <div style={{ backgroundColor: 'var(--tg-theme-bg-color)' }} className="min-h-screen">
-        <Skeleton className="aspect-square w-full rounded-none" />
+        <Skeleton className="w-full aspect-square rounded-none" />
         <div className="p-4 flex flex-col gap-3">
-          <Skeleton className="h-6 w-3/4" />
+          <Skeleton className="h-7 w-1/2" />
+          <Skeleton className="h-5 w-3/4" />
           <Skeleton className="h-4 w-1/3" />
-          <Skeleton className="h-8 w-1/2" />
-          <Skeleton className="h-20 w-full" />
+          <Skeleton className="h-10 w-full mt-2" />
+          <Skeleton className="h-24 w-full" />
         </div>
       </div>
     );
@@ -136,11 +122,14 @@ export default function ProductDetail() {
   if (!product) return null;
 
   return (
-    <div style={{ backgroundColor: 'var(--tg-theme-bg-color)' }} className="min-h-screen pb-20">
+    <div style={{ backgroundColor: 'var(--tg-theme-bg-color)' }} className="min-h-screen">
       {/* Image Gallery */}
       <div
-        className="relative aspect-square overflow-hidden"
-        style={{ backgroundColor: 'var(--tg-theme-secondary-bg-color)' }}
+        className="relative w-full overflow-hidden"
+        style={{
+          backgroundColor: 'var(--tg-theme-secondary-bg-color)',
+          aspectRatio: '1',
+        }}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
       >
@@ -154,54 +143,108 @@ export default function ProductDetail() {
                 key={i}
                 src={img}
                 alt={t(product.name)}
-                className="min-w-full h-full object-cover"
+                className="min-w-full h-full object-contain"
                 loading={i === 0 ? 'eager' : 'lazy'}
               />
             ))}
           </div>
         ) : (
-          <div className="w-full h-full flex items-center justify-center text-6xl">📷</div>
+          <div className="w-full h-full flex items-center justify-center opacity-30">
+            <svg width="64" height="64" viewBox="0 0 24 24" fill="none">
+              <rect x="3" y="3" width="18" height="18" rx="2" stroke="var(--tg-theme-hint-color)" strokeWidth="1.5" />
+              <circle cx="8.5" cy="8.5" r="1.5" fill="var(--tg-theme-hint-color)" />
+              <path d="M21 15l-5-5L5 21" stroke="var(--tg-theme-hint-color)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </div>
+        )}
+
+        {/* Top overlay buttons */}
+        <div className="absolute top-0 left-0 right-0 flex items-center justify-between p-3 z-10">
+          <button
+            className="w-9 h-9 rounded-full flex items-center justify-center"
+            style={{ backgroundColor: 'rgba(255,255,255,0.9)', boxShadow: 'var(--storex-shadow-sm)' }}
+            onClick={() => navigate(-1)}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--tg-theme-text-color)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="15 18 9 12 15 6" />
+            </svg>
+          </button>
+
+          <div className="flex gap-2">
+            <button
+              className="w-9 h-9 rounded-full flex items-center justify-center"
+              style={{ backgroundColor: 'rgba(255,255,255,0.9)', boxShadow: 'var(--storex-shadow-sm)' }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--tg-theme-text-color)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" />
+                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" /><line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+              </svg>
+            </button>
+            <button
+              className="w-9 h-9 rounded-full flex items-center justify-center"
+              style={{ backgroundColor: isFavorite ? 'var(--storex-price-sale)' : 'rgba(255,255,255,0.9)', boxShadow: 'var(--storex-shadow-sm)' }}
+              onClick={toggleFavorite}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill={isFavorite ? '#fff' : 'none'} stroke={isFavorite ? '#fff' : 'var(--tg-theme-text-color)'} strokeWidth="2">
+                <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        {/* Image counter */}
+        {images.length > 1 && (
+          <div
+            className="absolute bottom-3 right-3 px-2 py-0.5 rounded-full text-[11px] font-medium"
+            style={{ backgroundColor: 'rgba(0,0,0,0.5)', color: '#fff' }}
+          >
+            {currentImage + 1}/{images.length}
+          </div>
         )}
 
         {/* Dots */}
         {images.length > 1 && (
-          <div className="absolute bottom-3 left-0 right-0 flex items-center justify-center gap-1.5">
+          <div className="absolute bottom-3 left-0 right-0 flex items-center justify-center gap-1">
             {images.map((_, i) => (
               <div
                 key={i}
                 className="rounded-full transition-all duration-200"
                 style={{
-                  width: i === currentImage ? 16 : 6,
-                  height: 6,
-                  backgroundColor:
-                    i === currentImage ? 'var(--tg-theme-button-color)' : 'rgba(255,255,255,0.6)',
+                  width: i === currentImage ? 16 : 5,
+                  height: 5,
+                  backgroundColor: i === currentImage ? 'var(--storex-primary)' : 'rgba(0,0,0,0.2)',
                 }}
               />
             ))}
           </div>
         )}
-
-        {/* Discount badge */}
-        {product.discount_percent && product.discount_percent > 0 && (
-          <span className="absolute top-3 left-3 px-2 py-1 rounded-[8px] text-xs font-semibold text-white bg-[var(--store-price-sale)]">
-            -{product.discount_percent}%
-          </span>
-        )}
-
-        {/* Favorite heart */}
-        <button
-          className="absolute top-3 right-3 w-10 h-10 rounded-full flex items-center justify-center transition-transform duration-150 active:scale-[1.3]"
-          style={{ backgroundColor: 'rgba(0,0,0,0.3)' }}
-          onClick={toggleFavorite}
-        >
-          <span className="text-lg">{isFavorite ? '❤️' : '🤍'}</span>
-        </button>
       </div>
 
-      <div className="px-4 pt-4">
+      {/* Product Info */}
+      <div className="px-4 pt-4 pb-24">
+        {/* Price row */}
+        <div className="flex items-baseline gap-2 mb-1">
+          <span className="text-2xl font-bold" style={{ color: 'var(--storex-primary)' }}>
+            {formatPrice(currentPrice)}
+          </span>
+          {product.old_price && (
+            <span className="text-sm line-through" style={{ color: 'var(--storex-price-old)' }}>
+              {formatPrice(product.old_price)}
+            </span>
+          )}
+          {discountPercent > 0 && (
+            <span
+              className="px-1.5 py-0.5 text-[11px] font-bold text-white rounded-md"
+              style={{ backgroundColor: 'var(--storex-price-sale)' }}
+            >
+              -{discountPercent}%
+            </span>
+          )}
+        </div>
+
         {/* Name */}
         <h1
-          className="text-[20px] font-semibold leading-6 mb-2"
+          className="text-[17px] font-semibold leading-snug mb-2"
           style={{ color: 'var(--tg-theme-text-color)' }}
         >
           {t(product.name)}
@@ -209,33 +252,30 @@ export default function ProductDetail() {
 
         {/* Rating */}
         {(product.reviews_count ?? 0) > 0 && (
-          <div className="flex items-center gap-1 mb-3">
-            <span className="text-sm">⭐ {product.rating}</span>
-            <span className="text-sm" style={{ color: 'var(--tg-theme-hint-color)' }}>
-              ({product.reviews_count} sharh)
+          <div className="flex items-center gap-1.5 mb-4">
+            <div className="flex gap-0.5">
+              {Array.from({ length: 5 }, (_, i) => (
+                <svg key={i} width="14" height="14" viewBox="0 0 12 12" fill={i < Math.round(product.rating ?? 0) ? '#f59e0b' : '#e5e7eb'}>
+                  <path d="M6 0l1.76 3.57 3.94.57-2.85 2.78.67 3.93L6 8.89 2.48 10.85l.67-3.93L.3 4.14l3.94-.57z" />
+                </svg>
+              ))}
+            </div>
+            <span className="text-[13px] font-medium" style={{ color: 'var(--tg-theme-text-color)' }}>
+              {product.rating}
+            </span>
+            <span className="text-[13px]" style={{ color: 'var(--tg-theme-hint-color)' }}>
+              ({product.reviews_count} ta sharh)
             </span>
           </div>
         )}
-
-        {/* Price */}
-        <div className="flex items-baseline gap-2 mb-4">
-          <span className="text-[24px] font-semibold" style={{ color: 'var(--tg-theme-text-color)' }}>
-            {formatPrice(currentPrice)}
-          </span>
-          {product.old_price && (
-            <span className="text-sm line-through" style={{ color: 'var(--store-price-old)' }}>
-              {formatPrice(product.old_price)}
-            </span>
-          )}
-        </div>
 
         {/* Variants */}
         {variantTypes.map((type) => {
           const variants = product.variants!.filter((v) => v.type === type);
           return (
             <div key={type} className="mb-4">
-              <p className="text-sm font-medium mb-2" style={{ color: 'var(--tg-theme-text-color)' }}>
-                {type === 'color' ? 'Rangni tanlang' : type === 'size' ? "O'lchamni tanlang" : type}
+              <p className="text-[13px] font-semibold mb-2" style={{ color: 'var(--tg-theme-text-color)' }}>
+                {type === 'color' ? 'Rang' : type === 'size' ? "O'lcham" : type}
               </p>
               <div className="flex gap-2 flex-wrap">
                 {variants.map((v) => {
@@ -243,12 +283,11 @@ export default function ProductDetail() {
                   return type === 'color' ? (
                     <button
                       key={v.id}
-                      className="w-9 h-9 rounded-full border-2 transition-all"
+                      className="w-9 h-9 rounded-full transition-all"
                       style={{
                         backgroundColor: v.value,
-                        borderColor: isSelected
-                          ? 'var(--tg-theme-button-color)'
-                          : 'transparent',
+                        border: isSelected ? '2.5px solid var(--storex-primary)' : '2px solid var(--storex-border)',
+                        outline: isSelected ? '2px solid var(--tg-theme-bg-color)' : 'none',
                       }}
                       onClick={() => {
                         haptic.selectionChanged();
@@ -258,15 +297,12 @@ export default function ProductDetail() {
                   ) : (
                     <button
                       key={v.id}
-                      className="px-4 py-2 rounded-[8px] text-sm font-medium transition-all"
-                      style={{
-                        backgroundColor: isSelected
-                          ? 'var(--tg-theme-button-color)'
-                          : 'var(--tg-theme-secondary-bg-color)',
-                        color: isSelected
-                          ? 'var(--tg-theme-button-text-color)'
-                          : 'var(--tg-theme-text-color)',
-                      }}
+                      className="storex-chip"
+                      style={isSelected ? {
+                        backgroundColor: 'var(--storex-primary)',
+                        borderColor: 'var(--storex-primary)',
+                        color: '#fff',
+                      } : undefined}
                       onClick={() => {
                         haptic.selectionChanged();
                         setSelectedVariants((prev) => ({ ...prev, [type]: v }));
@@ -281,105 +317,170 @@ export default function ProductDetail() {
           );
         })}
 
-        {/* Separator */}
-        <hr className="my-4" style={{ borderColor: 'var(--tg-theme-secondary-bg-color)' }} />
+        <div className="storex-divider -mx-4 my-4" />
 
         {/* Description */}
         {(product.full_description || product.description) && (
           <>
-            <h3 className="text-[16px] font-semibold mb-2" style={{ color: 'var(--tg-theme-text-color)' }}>
-              Tavsif
-            </h3>
-            <div className="relative">
-              <p
-                className={`text-sm leading-5 ${!descExpanded ? 'line-clamp-3' : ''}`}
-                style={{ color: 'var(--tg-theme-text-color)' }}
+            <div
+              className="flex items-center justify-between cursor-pointer mb-2"
+              onClick={() => setDescExpanded(!descExpanded)}
+            >
+              <h3 className="text-[15px] font-semibold" style={{ color: 'var(--tg-theme-text-color)' }}>
+                Tavsif
+              </h3>
+              <svg
+                width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--tg-theme-hint-color)" strokeWidth="2"
+                style={{ transform: descExpanded ? 'rotate(180deg)' : 'none', transition: 'transform 200ms' }}
               >
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </div>
+            {descExpanded && (
+              <p className="text-[13px] leading-5 mb-2" style={{ color: 'var(--tg-theme-text-color)', opacity: 0.8 }}>
                 {t(product.full_description || product.description)}
               </p>
-              {!descExpanded && (
-                <button
-                  className="text-sm mt-1"
-                  style={{ color: 'var(--tg-theme-link-color)' }}
-                  onClick={() => setDescExpanded(true)}
-                >
-                  Ko'proq ko'rsatish ▼
-                </button>
-              )}
-            </div>
-            <hr className="my-4" style={{ borderColor: 'var(--tg-theme-secondary-bg-color)' }} />
+            )}
+            <div className="storex-divider -mx-4 my-4" />
           </>
         )}
 
-        {/* Attributes */}
+        {/* Attributes / Specs */}
         {product.attributes && Object.keys(product.attributes).length > 0 && (
           <>
-            <h3 className="text-[16px] font-semibold mb-2" style={{ color: 'var(--tg-theme-text-color)' }}>
-              Xususiyatlar
+            <h3 className="text-[15px] font-semibold mb-3" style={{ color: 'var(--tg-theme-text-color)' }}>
+              Xususiyatlari
             </h3>
-            <div className="flex flex-col gap-2 mb-4">
-              {Object.entries(product.attributes).map(([key, value]) => (
-                <div key={key} className="flex justify-between py-1.5 text-sm">
+            <div
+              className="overflow-hidden mb-4"
+              style={{ borderRadius: 'var(--storex-radius-md)' }}
+            >
+              {Object.entries(product.attributes).map(([key, value], i) => (
+                <div
+                  key={key}
+                  className="flex justify-between px-3 py-2.5 text-[13px]"
+                  style={{
+                    backgroundColor: i % 2 === 0 ? 'var(--tg-theme-secondary-bg-color)' : 'var(--tg-theme-bg-color)',
+                  }}
+                >
                   <span style={{ color: 'var(--tg-theme-hint-color)' }}>{key}</span>
-                  <span style={{ color: 'var(--tg-theme-text-color)' }}>{value}</span>
+                  <span className="font-medium" style={{ color: 'var(--tg-theme-text-color)' }}>{value}</span>
                 </div>
               ))}
             </div>
-            <hr className="my-4" style={{ borderColor: 'var(--tg-theme-secondary-bg-color)' }} />
+            <div className="storex-divider -mx-4 my-4" />
           </>
         )}
 
         {/* Reviews */}
         {product.reviews && product.reviews.length > 0 && (
           <>
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-[16px] font-semibold" style={{ color: 'var(--tg-theme-text-color)' }}>
+            <div className="storex-section-header px-0! mb-3">
+              <h3 className="storex-section-title text-[15px]">
                 Sharhlar ({product.reviews_count})
               </h3>
+              <button className="storex-section-link">Hammasi</button>
             </div>
-            <div className="flex flex-col gap-3 mb-4">
-              {product.reviews.slice(0, 3).map((review) => (
+            <div className="flex flex-col gap-2.5 mb-4">
+              {product.reviews.slice(0, 2).map((review) => (
                 <div
                   key={review.id}
-                  className="p-3 rounded-[12px]"
-                  style={{ backgroundColor: 'var(--tg-theme-secondary-bg-color)' }}
+                  className="p-3"
+                  style={{
+                    backgroundColor: 'var(--tg-theme-secondary-bg-color)',
+                    borderRadius: 'var(--storex-radius-md)',
+                  }}
                 >
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-sm font-medium" style={{ color: 'var(--tg-theme-text-color)' }}>
-                      {review.user_name}
-                    </span>
-                    <span className="text-xs" style={{ color: 'var(--tg-theme-hint-color)' }}>
-                      {'⭐'.repeat(review.rating)}
-                    </span>
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <div
+                      className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold"
+                      style={{ backgroundColor: 'var(--storex-primary-light)', color: 'var(--storex-primary)' }}
+                    >
+                      {review.user_name[0]}
+                    </div>
+                    <div className="flex-1">
+                      <span className="text-[13px] font-medium" style={{ color: 'var(--tg-theme-text-color)' }}>
+                        {review.user_name}
+                      </span>
+                    </div>
+                    <div className="flex gap-0.5">
+                      {Array.from({ length: 5 }, (_, i) => (
+                        <svg key={i} width="10" height="10" viewBox="0 0 12 12" fill={i < review.rating ? '#f59e0b' : '#e5e7eb'}>
+                          <path d="M6 0l1.76 3.57 3.94.57-2.85 2.78.67 3.93L6 8.89 2.48 10.85l.67-3.93L.3 4.14l3.94-.57z" />
+                        </svg>
+                      ))}
+                    </div>
                   </div>
-                  <p className="text-sm" style={{ color: 'var(--tg-theme-text-color)' }}>
+                  <p className="text-[13px] leading-[1.4] line-clamp-3" style={{ color: 'var(--tg-theme-text-color)' }}>
                     {review.text}
                   </p>
-                  <p className="text-xs mt-1" style={{ color: 'var(--tg-theme-hint-color)' }}>
+                  <p className="text-[11px] mt-1.5" style={{ color: 'var(--tg-theme-hint-color)' }}>
                     {formatDate(review.created_at)}
                   </p>
                 </div>
               ))}
             </div>
-            <hr className="my-4" style={{ borderColor: 'var(--tg-theme-secondary-bg-color)' }} />
+            <div className="storex-divider -mx-4 my-4" />
           </>
         )}
 
         {/* Similar products */}
         {product.similar_products && product.similar_products.length > 0 && (
           <>
-            <h3 className="text-[16px] font-semibold mb-3" style={{ color: 'var(--tg-theme-text-color)' }}>
+            <h3 className="text-[15px] font-semibold mb-3" style={{ color: 'var(--tg-theme-text-color)' }}>
               O'xshash mahsulotlar
             </h3>
-            <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-4">
+            <div className="flex gap-2 overflow-x-auto scrollbar-hide -mx-4 px-4 pb-2">
               {product.similar_products.map((p) => (
-                <div key={p.id} className="min-w-[150px] max-w-[150px]">
+                <div key={p.id} className="min-w-[150px] max-w-[150px] shrink-0">
                   <ProductCard product={p} />
                 </div>
               ))}
             </div>
           </>
         )}
+      </div>
+
+      {/* Bottom action bar (non-Telegram fallback) */}
+      <div
+        className="fixed bottom-0 left-0 right-0 z-40 px-4 py-3 flex gap-2"
+        style={{
+          backgroundColor: 'var(--tg-theme-bg-color)',
+          borderTop: '0.5px solid var(--storex-border)',
+          paddingBottom: 'calc(12px + env(safe-area-inset-bottom, 0px))',
+        }}
+      >
+        <button
+          className="flex-1 py-3 text-[14px] font-semibold press-effect flex items-center justify-center gap-1.5"
+          style={{
+            border: '1.5px solid var(--storex-primary)',
+            borderRadius: 'var(--storex-radius-md)',
+            color: 'var(--storex-primary)',
+            backgroundColor: 'var(--tg-theme-bg-color)',
+          }}
+          onClick={handleAddToCart}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4H6z" />
+            <path d="M3 6h18" />
+            <path d="M16 10a4 4 0 01-8 0" />
+          </svg>
+          {justAdded ? 'Qo\'shildi' : inCart ? 'Savatda' : 'Savatga'}
+        </button>
+        <button
+          className="flex-1 py-3 text-[14px] font-semibold press-effect"
+          style={{
+            backgroundColor: 'var(--storex-primary)',
+            borderRadius: 'var(--storex-radius-md)',
+            color: '#fff',
+          }}
+          onClick={() => {
+            if (!inCart) handleAddToCart();
+            navigate('/checkout');
+          }}
+        >
+          Sotib olish · {formatPrice(currentPrice)}
+        </button>
       </div>
     </div>
   );

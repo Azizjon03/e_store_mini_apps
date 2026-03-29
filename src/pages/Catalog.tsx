@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { getCategories } from '@/api/storefront';
+import { getCategories, getProductFilters } from '@/api/storefront';
 import { useInfiniteProducts } from '@/hooks/useInfiniteProducts';
 import { useHaptic } from '@/hooks/useHaptic';
 import { PageLayout } from '@/components/layout/PageLayout';
@@ -15,11 +15,11 @@ import { t } from '@/lib/format';
 type SortOption = ProductFilters['sort'];
 
 const SORT_OPTIONS: { value: SortOption; label: string }[] = [
-  { value: 'popular', label: 'Mashxur' },
-  { value: 'price_asc', label: 'Narx: arzon → qimmat' },
-  { value: 'price_desc', label: 'Narx: qimmat → arzon' },
+  { value: 'popular', label: 'Ommabop' },
+  { value: 'price_asc', label: 'Arzon → Qimmat' },
+  { value: 'price_desc', label: 'Qimmat → Arzon' },
   { value: 'newest', label: 'Yangi' },
-  { value: 'rating', label: 'Reyting bo\'yicha' },
+  { value: 'rating', label: 'Reyting' },
 ];
 
 export default function Catalog() {
@@ -64,7 +64,11 @@ export default function Catalog() {
     queryFn: getCategories,
   });
 
-  // Infinite scroll via IntersectionObserver
+  const { data: filterOptions } = useQuery({
+    queryKey: ['product-filters', activeCategory],
+    queryFn: () => getProductFilters({ category_slug: activeCategory }),
+  });
+
   useEffect(() => {
     const el = loaderRef.current;
     if (!el) return;
@@ -99,41 +103,33 @@ export default function Catalog() {
 
   return (
     <PageLayout>
-      {/* Category chips */}
+      {/* Category filter chips */}
       {categories && categories.length > 0 && (
-        <div className="px-4 py-2">
+        <div className="px-4 pt-2 pb-1">
           <div className="flex gap-2 overflow-x-auto scrollbar-hide">
             <button
-              className="px-3.5 py-1.5 rounded-[20px] text-sm shrink-0 font-medium transition-all"
-              style={{
-                backgroundColor: !activeCategory
-                  ? 'var(--tg-theme-button-color)'
-                  : 'var(--tg-theme-secondary-bg-color)',
-                color: !activeCategory
-                  ? 'var(--tg-theme-button-text-color)'
-                  : 'var(--tg-theme-text-color)',
-              }}
+              className="storex-chip"
+              style={!activeCategory ? {
+                backgroundColor: 'var(--storex-primary)',
+                borderColor: 'var(--storex-primary)',
+                color: '#fff',
+              } : undefined}
               onClick={() => {
                 haptic.selectionChanged();
                 setActiveCategory(undefined);
               }}
             >
-              Barchasi
+              Hammasi
             </button>
             {categories.map((cat) => (
               <button
                 key={cat.id}
-                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-[20px] text-sm shrink-0 font-medium whitespace-nowrap transition-all"
-                style={{
-                  backgroundColor:
-                    activeCategory === cat.slug
-                      ? 'var(--tg-theme-button-color)'
-                      : 'var(--tg-theme-secondary-bg-color)',
-                  color:
-                    activeCategory === cat.slug
-                      ? 'var(--tg-theme-button-text-color)'
-                      : 'var(--tg-theme-text-color)',
-                }}
+                className="storex-chip"
+                style={activeCategory === cat.slug ? {
+                  backgroundColor: 'var(--storex-primary)',
+                  borderColor: 'var(--storex-primary)',
+                  color: '#fff',
+                } : undefined}
                 onClick={() => {
                   haptic.selectionChanged();
                   setActiveCategory(cat.slug);
@@ -147,30 +143,38 @@ export default function Catalog() {
         </div>
       )}
 
-      {/* Sort + Filter bar */}
-      <div className="flex gap-2 px-4 py-2">
+      {/* Sort + Filter row */}
+      <div className="flex items-center gap-2 px-4 py-2">
         <button
-          className="flex items-center gap-1 px-3 py-1.5 rounded-[8px] text-sm"
-          style={{ backgroundColor: 'var(--tg-theme-secondary-bg-color)', color: 'var(--tg-theme-text-color)' }}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-[13px] font-medium press-effect"
+          style={{
+            backgroundColor: 'var(--tg-theme-secondary-bg-color)',
+            borderRadius: 'var(--storex-radius-full)',
+            color: 'var(--tg-theme-text-color)',
+          }}
           onClick={() => setShowSort(true)}
         >
-          <span>⬇️</span>
-          {SORT_OPTIONS.find((s) => s.value === sort)?.label ?? 'Saralash'}
+          Saralash: {SORT_OPTIONS.find((s) => s.value === sort)?.label}
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
         </button>
+
         <button
-          className="flex items-center gap-1 px-3 py-1.5 rounded-[8px] text-sm relative"
-          style={{ backgroundColor: 'var(--tg-theme-secondary-bg-color)', color: 'var(--tg-theme-text-color)' }}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-[13px] font-medium press-effect relative"
+          style={{
+            backgroundColor: activeFilterCount > 0 ? 'var(--storex-primary)' : 'var(--tg-theme-secondary-bg-color)',
+            borderRadius: 'var(--storex-radius-full)',
+            color: activeFilterCount > 0 ? '#fff' : 'var(--tg-theme-text-color)',
+          }}
           onClick={() => setShowFilter(true)}
         >
-          <span>🔽</span>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+          </svg>
           Filter
           {activeFilterCount > 0 && (
-            <span
-              className="ml-1 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-semibold"
-              style={{ backgroundColor: 'var(--tg-theme-button-color)', color: 'var(--tg-theme-button-text-color)' }}
-            >
-              {activeFilterCount}
-            </span>
+            <span className="text-[10px] font-bold">({activeFilterCount})</span>
           )}
         </button>
       </div>
@@ -203,7 +207,6 @@ export default function Catalog() {
             ))}
           </div>
 
-          {/* Infinite scroll loader */}
           <div ref={loaderRef} className="py-4">
             {isFetchingNextPage && (
               <div className="grid grid-cols-2 gap-2 px-4">
@@ -229,10 +232,12 @@ export default function Catalog() {
           {SORT_OPTIONS.map((opt) => (
             <button
               key={opt.value}
-              className="flex items-center justify-between px-3 py-3 rounded-[8px] text-sm text-left"
+              className="flex items-center justify-between px-3 py-3 text-sm text-left press-effect"
               style={{
-                backgroundColor: sort === opt.value ? 'var(--tg-theme-secondary-bg-color)' : 'transparent',
-                color: 'var(--tg-theme-text-color)',
+                backgroundColor: sort === opt.value ? 'var(--storex-primary-light)' : 'transparent',
+                color: sort === opt.value ? 'var(--storex-primary)' : 'var(--tg-theme-text-color)',
+                borderRadius: 'var(--storex-radius-sm)',
+                fontWeight: sort === opt.value ? 600 : 400,
               }}
               onClick={() => {
                 haptic.selectionChanged();
@@ -242,7 +247,9 @@ export default function Catalog() {
             >
               <span>{opt.label}</span>
               {sort === opt.value && (
-                <span style={{ color: 'var(--tg-theme-button-color)' }}>✓</span>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--storex-primary)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
               )}
             </button>
           ))}
@@ -250,42 +257,37 @@ export default function Catalog() {
       </BottomSheet>
 
       {/* Filter Bottom Sheet */}
-      <BottomSheet
-        isOpen={showFilter}
-        onClose={() => setShowFilter(false)}
-        title="Filterlash"
-      >
+      <BottomSheet isOpen={showFilter} onClose={() => setShowFilter(false)} title="Filtr">
         <div className="flex flex-col gap-5 pb-4">
           {/* Price range */}
           <div>
             <h4 className="text-sm font-semibold mb-3" style={{ color: 'var(--tg-theme-text-color)' }}>
               Narx oralig'i
             </h4>
-            <div className="flex gap-2">
+            <div className="flex gap-2 items-center">
               <input
                 type="number"
-                placeholder="Min"
+                placeholder={filterOptions?.price_range ? String(filterOptions.price_range.min) : 'dan'}
                 value={minPrice ?? ''}
-                onChange={(e) =>
-                  setMinPrice(e.target.value ? Number(e.target.value) : undefined)
-                }
-                className="flex-1 h-10 px-3 rounded-[8px] text-sm outline-none"
+                onChange={(e) => setMinPrice(e.target.value ? Number(e.target.value) : undefined)}
+                className="flex-1 h-11 px-3.5 text-sm outline-none"
                 style={{
                   backgroundColor: 'var(--tg-theme-secondary-bg-color)',
                   color: 'var(--tg-theme-text-color)',
+                  borderRadius: 'var(--storex-radius-md)',
                 }}
               />
+              <span className="text-xs" style={{ color: 'var(--tg-theme-hint-color)' }}>—</span>
               <input
                 type="number"
-                placeholder="Max"
+                placeholder={filterOptions?.price_range ? String(filterOptions.price_range.max) : 'gacha'}
                 value={maxPrice ?? ''}
-                onChange={(e) =>
-                  setMaxPrice(e.target.value ? Number(e.target.value) : undefined)
-                }
-                className="flex-1 h-10 px-3 rounded-[8px] text-sm outline-none"
+                onChange={(e) => setMaxPrice(e.target.value ? Number(e.target.value) : undefined)}
+                className="flex-1 h-11 px-3.5 text-sm outline-none"
                 style={{
                   backgroundColor: 'var(--tg-theme-secondary-bg-color)',
                   color: 'var(--tg-theme-text-color)',
+                  borderRadius: 'var(--storex-radius-md)',
                 }}
               />
             </div>
@@ -296,48 +298,48 @@ export default function Catalog() {
             <h4 className="text-sm font-semibold mb-3" style={{ color: 'var(--tg-theme-text-color)' }}>
               Reyting
             </h4>
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-1">
               {[5, 4, 3].map((r) => (
                 <button
                   key={r}
-                  className="flex items-center gap-2 px-3 py-2 rounded-[8px] text-sm"
+                  className="flex items-center gap-2 px-3 py-2.5 text-sm press-effect"
                   style={{
-                    backgroundColor:
-                      minRating === r
-                        ? 'var(--tg-theme-secondary-bg-color)'
-                        : 'transparent',
-                    color: 'var(--tg-theme-text-color)',
+                    backgroundColor: minRating === r ? 'var(--storex-primary-light)' : 'transparent',
+                    color: minRating === r ? 'var(--storex-primary)' : 'var(--tg-theme-text-color)',
+                    borderRadius: 'var(--storex-radius-sm)',
                   }}
                   onClick={() => setMinRating(minRating === r ? undefined : r)}
                 >
-                  <span>{r === 5 ? '⭐'.repeat(5) : '⭐'.repeat(r) + ' va yuqori'}</span>
-                  {minRating === r && (
-                    <span style={{ color: 'var(--tg-theme-button-color)' }}>✓</span>
-                  )}
+                  <div className="flex gap-0.5">
+                    {Array.from({ length: 5 }, (_, i) => (
+                      <svg key={i} width="14" height="14" viewBox="0 0 12 12" fill={i < r ? '#f59e0b' : 'var(--tg-theme-secondary-bg-color)'}>
+                        <path d="M6 0l1.76 3.57 3.94.57-2.85 2.78.67 3.93L6 8.89 2.48 10.85l.67-3.93L.3 4.14l3.94-.57z" />
+                      </svg>
+                    ))}
+                  </div>
+                  {r < 5 && <span className="text-xs">va yuqori</span>}
                 </button>
               ))}
             </div>
           </div>
 
-          {/* Discount only */}
-          <div className="flex items-center justify-between">
-            <span className="text-sm" style={{ color: 'var(--tg-theme-text-color)' }}>
+          {/* Discount only toggle */}
+          <div className="flex items-center justify-between px-1">
+            <span className="text-sm font-medium" style={{ color: 'var(--tg-theme-text-color)' }}>
               Faqat chegirmali
             </span>
             <button
               className="w-12 h-7 rounded-full p-0.5 transition-colors duration-200"
               style={{
-                backgroundColor: discountOnly
-                  ? 'var(--tg-theme-button-color)'
-                  : 'var(--tg-theme-hint-color, #ccc)',
+                backgroundColor: discountOnly ? 'var(--storex-primary)' : 'var(--tg-theme-hint-color, #ccc)',
               }}
               onClick={() => setDiscountOnly(!discountOnly)}
             >
               <div
-                className="w-6 h-6 rounded-full transition-transform duration-200"
+                className="w-6 h-6 rounded-full bg-white transition-transform duration-200"
                 style={{
-                  backgroundColor: '#fff',
                   transform: discountOnly ? 'translateX(20px)' : 'translateX(0)',
+                  boxShadow: 'var(--storex-shadow-sm)',
                 }}
               />
             </button>
@@ -346,29 +348,29 @@ export default function Catalog() {
           {/* Actions */}
           <div className="flex gap-3 pt-2">
             <button
-              className="flex-1 py-3 rounded-[12px] text-sm font-medium"
+              className="flex-1 py-3 text-sm font-semibold press-effect"
               style={{
                 backgroundColor: 'var(--tg-theme-secondary-bg-color)',
                 color: 'var(--tg-theme-text-color)',
+                borderRadius: 'var(--storex-radius-md)',
               }}
-              onClick={() => {
-                clearFilters();
-              }}
+              onClick={() => clearFilters()}
             >
               Tozalash
             </button>
             <button
-              className="flex-1 py-3 rounded-[12px] text-sm font-medium"
+              className="flex-1 py-3 text-sm font-semibold press-effect"
               style={{
-                backgroundColor: 'var(--tg-theme-button-color)',
-                color: 'var(--tg-theme-button-text-color)',
+                backgroundColor: 'var(--storex-primary)',
+                color: '#fff',
+                borderRadius: 'var(--storex-radius-md)',
               }}
               onClick={() => {
                 haptic.impact('light');
                 setShowFilter(false);
               }}
             >
-              ✓ Qo'llash
+              Ko'rsatish
             </button>
           </div>
         </div>

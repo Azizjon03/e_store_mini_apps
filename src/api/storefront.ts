@@ -12,6 +12,10 @@ import type {
   Address,
   PaginatedResponse,
   ProductFilters,
+  FilterOptions,
+  DeliverySlotResponse,
+  PaymentMethodOption,
+  Profile,
 } from './types';
 
 // Init (public)
@@ -37,6 +41,11 @@ export const getProductDetail = (slug: string) =>
     .get<{ data: ProductDetail }>(`/products/${slug}`)
     .then((r) => r.data.data);
 
+export const getProductFilters = (params?: { category_slug?: string }) =>
+  apiClient
+    .get<{ data: FilterOptions }>('/products/filters', { params })
+    .then((r) => r.data.data);
+
 // Search (public)
 export const searchProducts = (query: string, page = 1) =>
   apiClient
@@ -47,6 +56,11 @@ export const getPopularSearches = () =>
   apiClient
     .get<{ data: string[] }>('/search/popular')
     .then((r) => r.data.data);
+
+export const getSearchSuggestions = (query: string) =>
+  apiClient
+    .get<{ data: { suggestions: string[] } }>('/search/suggestions', { params: { q: query } })
+    .then((r) => r.data.data.suggestions);
 
 // Cart (authenticated — tg/ prefix)
 export const getCart = () =>
@@ -82,11 +96,23 @@ export const removePromoCode = () =>
   apiClient.delete('/tg/cart/promo').then((r) => r.data);
 
 // Checkout (authenticated — tg/ prefix)
+export const getDeliverySlots = () =>
+  apiClient
+    .get<{ data: DeliverySlotResponse }>('/tg/checkout/delivery-slots')
+    .then((r) => r.data.data);
+
+export const getPaymentMethods = () =>
+  apiClient
+    .get<{ data: { methods: PaymentMethodOption[] } }>('/tg/checkout/payment-methods')
+    .then((r) => r.data.data.methods);
+
 export const checkout = (data: {
   address_id?: number;
   shipping_address?: { full_address: string; lat?: number; lng?: number };
   delivery_method: 'delivery' | 'pickup';
-  payment_method: 'click' | 'payme' | 'cash';
+  payment_method: string;
+  delivery_slot_id?: number;
+  pickup_point_id?: number;
   notes?: string;
   promo_code?: string;
 }) =>
@@ -95,9 +121,9 @@ export const checkout = (data: {
     .then((r) => r.data.data);
 
 // Orders (authenticated — tg/ prefix)
-export const getOrders = (page = 1) =>
+export const getOrders = (page = 1, status?: string) =>
   apiClient
-    .get<PaginatedResponse<Order>>('/tg/orders', { params: { page } })
+    .get<PaginatedResponse<Order>>('/tg/orders', { params: { page, status: status !== 'all' ? status : undefined } })
     .then((r) => r.data);
 
 export const getOrderDetail = (id: number) =>
@@ -112,7 +138,7 @@ export const reorderProducts = (orderId: number) =>
 
 // Profile (authenticated — tg/ prefix)
 export const getProfile = () =>
-  apiClient.get<{ data: { id: number; first_name: string; last_name?: string; username?: string; photo_url?: string; phone?: string; email?: string } }>('/tg/profile').then((r) => r.data.data);
+  apiClient.get<{ data: Profile }>('/tg/profile').then((r) => r.data.data);
 
 // Addresses (authenticated — tg/ prefix)
 export const getAddresses = () =>
@@ -132,6 +158,9 @@ export const updateAddress = (id: number, data: Partial<Address>) =>
 
 export const deleteAddress = (id: number) =>
   apiClient.delete(`/tg/addresses/${id}`);
+
+export const setPrimaryAddress = (id: number) =>
+  apiClient.put<{ data: Address }>(`/tg/addresses/${id}/primary`).then((r) => r.data.data);
 
 // Favorites (authenticated — tg/ prefix)
 export const getFavorites = () =>
