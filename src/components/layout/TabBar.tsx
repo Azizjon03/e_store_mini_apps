@@ -45,8 +45,8 @@ export function TabBar() {
         return (
           <button
             key={tab.path}
-            className="flex-1 flex flex-col items-center justify-center py-1.5 gap-0.5 relative"
-            style={{ minHeight: 52 }}
+            className="flex-1 flex flex-col items-center justify-center py-2 gap-1 relative press-effect"
+            style={{ minHeight: 'var(--storex-tabbar-height, 56px)' }}
             onClick={() => {
               haptic.selectionChanged();
               navigate(tab.path);
@@ -57,7 +57,7 @@ export function TabBar() {
               {tab.badge && <Badge count={totalItems()} />}
             </div>
             <span
-              className="text-[10px] font-medium"
+              className="text-[11px] font-medium"
               style={{
                 color: active
                   ? 'var(--storex-primary)'

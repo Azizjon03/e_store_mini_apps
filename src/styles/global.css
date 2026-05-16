@@ -43,21 +43,83 @@
   --storex-shadow-lg: 0 4px 16px rgba(0,0,0,0.12);
   --storex-shadow-card: 0 1px 3px rgba(0,0,0,0.06), 0 0 0 1px rgba(0,0,0,0.04);
 
-  /* Spacing */
+  /* Radius scale */
   --storex-radius-xs: 6px;
-  --storex-radius-sm: 8px;
-  --storex-radius-md: 12px;
-  --storex-radius-lg: 16px;
-  --storex-radius-xl: 20px;
+  --storex-radius-sm: 10px;
+  --storex-radius-md: 14px;
+  --storex-radius-lg: 18px;
+  --storex-radius-xl: 24px;
   --storex-radius-full: 9999px;
+
+  /* Spacing scale (4px grid) — for inline style/JS use */
+  --storex-space-1: 4px;
+  --storex-space-2: 8px;
+  --storex-space-3: 12px;
+  --storex-space-4: 16px;
+  --storex-space-5: 20px;
+  --storex-space-6: 24px;
+  --storex-space-8: 32px;
+
+  /* Layout constants */
+  --storex-page-padding: 16px;
+  --storex-tabbar-height: 56px;
+
+  /* Stitch design system tokens (Material 3-style neutrals) */
+  --stitch-surface: #f8f9fa;
+  --stitch-surface-container-lowest: #ffffff;
+  --stitch-surface-container-low: #f3f4f5;
+  --stitch-surface-container: #edeeef;
+  --stitch-surface-container-high: #e7e8e9;
+  --stitch-surface-container-highest: #e1e3e4;
+  --stitch-on-surface: #191c1d;
+  --stitch-on-surface-variant: #404752;
+  --stitch-outline: #707883;
+  --stitch-outline-variant: #bfc7d4;
+  --stitch-primary: #0061a4;
+  --stitch-secondary: #416084;
+  --stitch-error: #ba1a1a;
+}
+
+/* Material Symbols Outlined — icon font used on Profile page */
+.material-symbols-outlined {
+  font-family: 'Material Symbols Outlined';
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-feature-settings: 'liga';
+  -webkit-font-smoothing: antialiased;
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+.material-symbols-outlined.filled {
+  font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+
+/* Plus Jakarta Sans headline font */
+.font-headline {
+  font-family: 'Plus Jakarta Sans', var(--font-sans);
+}
+.font-body {
+  font-family: 'Inter', var(--font-sans);
 }
 
 /* ========== BASE RESET ========== */
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-  -webkit-tap-highlight-color: transparent;
+/* Wrapped in @layer base so Tailwind v4 utilities (in @layer utilities) can override
+   element padding/margin. Without this, the universal `padding: 0` selector wins over
+   `.px-6`, `.mb-4`, etc., breaking all spacing utilities project-wide. */
+@layer base {
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+  }
 }
 
 html, body, #root {
@@ -233,17 +295,19 @@ img {
   border-color: var(--storex-primary);
 }
 
-/* Section header */
+/* Section header — page padding 16px, header→content gap 16px */
 .storex-section-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 16px;
-  margin-bottom: 12px;
+  padding: 0 var(--storex-page-padding);
+  margin-bottom: 16px;
 }
 .storex-section-title {
   font-size: 17px;
   font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -0.2px;
   color: var(--tg-theme-text-color);
 }
 .storex-section-link {
@@ -252,17 +316,45 @@ img {
   color: var(--storex-primary);
 }
 
-/* Divider */
+/* Section wrapper — vertical rhythm (24px = "large block" gap per spec) */
+.storex-section {
+  padding-top: 24px;
+  padding-bottom: 24px;
+}
+
+/* Divider — 8px secondary-bg strip between sections */
 .storex-divider {
   height: 8px;
   background-color: var(--tg-theme-secondary-bg-color);
 }
 
-/* Active press effect */
+/* Card surface (white + subtle border + soft shadow) */
+.storex-surface {
+  background-color: var(--tg-theme-bg-color);
+  border-radius: var(--storex-radius-md);
+  border: var(--storex-border-card);
+  box-shadow: var(--storex-shadow-sm);
+}
+
+/* Active press effect — 8px feedback per spec */
 .press-effect {
-  transition: transform 150ms ease, opacity 150ms ease;
+  transition: transform 150ms cubic-bezier(0.2, 0, 0, 1), opacity 150ms ease;
 }
 .press-effect:active {
-  transform: scale(0.97);
-  opacity: 0.9;
+  transform: scale(0.94);
+  opacity: 0.85;
+}
+
+/* Glass card — for hero banner overlays per "Digital Atelier" concept */
+.storex-glass {
+  background: rgba(255, 255, 255, 0.18);
+  backdrop-filter: blur(14px) saturate(180%);
+  -webkit-backdrop-filter: blur(14px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+}
+
+/* Tonal surface — secondary-bg fonli "tonal shift" (border'siz, faqat ton farqi) */
+.storex-tonal {
+  background-color: var(--tg-theme-secondary-bg-color);
+  border-radius: var(--storex-radius-md);
 }

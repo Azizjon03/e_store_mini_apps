@@ -50,10 +50,10 @@ export function HeroBanner({ banners }: HeroBannerProps) {
   if (banners.length === 0) return null;
 
   return (
-    <div className="relative mx-4 mt-2 mb-1">
+    <div className="relative mx-4 mt-1 mb-1">
       <div
         className="relative overflow-hidden"
-        style={{ height: 180, borderRadius: 'var(--storex-radius-lg)' }}
+        style={{ height: 140, borderRadius: 'var(--storex-radius-lg)' }}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
       >
@@ -64,7 +64,7 @@ export function HeroBanner({ banners }: HeroBannerProps) {
           {banners.map((banner) => (
             <div
               key={banner.id}
-              className="min-w-full h-full flex-shrink-0 cursor-pointer relative"
+              className="min-w-full h-full shrink-0 cursor-pointer relative"
               onClick={() => handleClick(banner)}
               style={{ backgroundColor: 'var(--tg-theme-secondary-bg-color)' }}
             >
@@ -74,16 +74,21 @@ export function HeroBanner({ banners }: HeroBannerProps) {
                 className="w-full h-full object-cover"
                 loading="lazy"
               />
-              {/* Gradient overlay */}
+              {/* Bottom gradient for legibility */}
               <div
-                className="absolute inset-0"
-                style={{ background: 'linear-gradient(to right, rgba(0,0,0,0.4) 0%, transparent 60%)' }}
+                className="absolute inset-x-0 bottom-0 h-1/2 pointer-events-none"
+                style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.55) 0%, transparent 100%)' }}
               />
-              {/* Banner title */}
-              <div className="absolute bottom-4 left-4 right-16">
-                <h3 className="text-white text-lg font-bold leading-tight drop-shadow-sm">
-                  {banner.title}
-                </h3>
+              {/* Glassmorphism title chip */}
+              <div className="absolute bottom-3 left-3 right-20">
+                <div
+                  className="inline-block px-3 py-2 storex-glass"
+                  style={{ borderRadius: 'var(--storex-radius-md)' }}
+                >
+                  <h3 className="text-white text-[15px] font-bold leading-tight">
+                    {banner.title}
+                  </h3>
+                </div>
               </div>
             </div>
           ))}

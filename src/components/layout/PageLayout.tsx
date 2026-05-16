@@ -19,7 +19,9 @@ export function PageLayout({
       <main
         className="flex-1 overflow-x-hidden"
         style={{
-          paddingBottom: showTabBar ? 'calc(52px + env(safe-area-inset-bottom, 0px))' : 0,
+          paddingBottom: showTabBar
+            ? 'calc(var(--storex-tabbar-height, 56px) + env(safe-area-inset-bottom, 0px))'
+            : 0,
           backgroundColor: 'var(--tg-theme-bg-color)',
         }}
       >

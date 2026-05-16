@@ -16,12 +16,12 @@ export function ProductSection({ title, products, linkTo, layout = 'grid' }: Pro
   if (products.length === 0) return null;
 
   return (
-    <section className="py-3">
+    <section className="storex-section">
       <div className="storex-section-header">
         <h2 className="storex-section-title">{title}</h2>
         {linkTo && (
           <button
-            className="storex-section-link flex items-center gap-0.5"
+            className="storex-section-link flex items-center gap-0.5 press-effect"
             onClick={() => navigate(linkTo)}
           >
             Hammasi
@@ -32,9 +32,9 @@ export function ProductSection({ title, products, linkTo, layout = 'grid' }: Pro
         )}
       </div>
       {layout === 'horizontal' ? (
-        <div className="flex gap-2 overflow-x-auto px-4 pb-1 scrollbar-hide">
+        <div className="flex gap-3 overflow-x-auto px-4 pb-1 scrollbar-hide">
           {products.map((product) => (
-            <div key={product.id} className="shrink-0" style={{ width: 150 }}>
+            <div key={product.id} className="shrink-0" style={{ width: 160 }}>
               <ProductCard product={product} />
             </div>
           ))}

@@ -105,7 +105,7 @@ export default function Catalog() {
     <PageLayout>
       {/* Category filter chips */}
       {categories && categories.length > 0 && (
-        <div className="px-4 pt-2 pb-1">
+        <div className="px-4 pt-3 pb-2">
           <div className="flex gap-2 overflow-x-auto scrollbar-hide">
             <button
               className="storex-chip"
@@ -144,7 +144,7 @@ export default function Catalog() {
       )}
 
       {/* Sort + Filter row */}
-      <div className="flex items-center gap-2 px-4 py-2">
+      <div className="flex items-center gap-2 px-4 py-3">
         <button
           className="flex items-center gap-1.5 px-3 py-1.5 text-[13px] font-medium press-effect"
           style={{
@@ -181,7 +181,7 @@ export default function Catalog() {
 
       {/* Product grid */}
       {isLoading ? (
-        <div className="grid grid-cols-2 gap-2 px-4">
+        <div className="grid grid-cols-2 gap-3 px-4">
           {Array.from({ length: 6 }, (_, i) => (
             <ProductCardSkeleton key={i} />
           ))}
@@ -201,7 +201,7 @@ export default function Catalog() {
         />
       ) : (
         <>
-          <div className="grid grid-cols-2 gap-2 px-4">
+          <div className="grid grid-cols-2 gap-3 px-4">
             {allProducts.map((product) => (
               <ProductCard key={product.id} product={product} />
             ))}
@@ -209,7 +209,7 @@ export default function Catalog() {
 
           <div ref={loaderRef} className="py-4">
             {isFetchingNextPage && (
-              <div className="grid grid-cols-2 gap-2 px-4">
+              <div className="grid grid-cols-2 gap-3 px-4">
                 <ProductCardSkeleton />
                 <ProductCardSkeleton />
               </div>

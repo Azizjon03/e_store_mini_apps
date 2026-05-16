@@ -83,11 +83,11 @@ export default function Search() {
     <div className="min-h-screen" style={{ backgroundColor: 'var(--tg-theme-bg-color)' }}>
       {/* Search bar with back arrow and cancel */}
       <div
-        className="sticky top-0 z-30 px-4 py-2 flex items-center gap-2"
+        className="sticky top-0 z-30 px-4 py-3 flex items-center gap-2"
         style={{ backgroundColor: 'var(--tg-theme-bg-color)', borderBottom: '1px solid var(--storex-border)' }}
       >
         <button
-          className="shrink-0 w-8 h-8 flex items-center justify-center press-effect"
+          className="shrink-0 w-9 h-9 flex items-center justify-center press-effect"
           onClick={() => navigate(-1)}
           style={{ color: 'var(--tg-theme-text-color)' }}
         >
@@ -96,7 +96,7 @@ export default function Search() {
           </svg>
         </button>
         <div
-          className="flex-1 flex items-center gap-2 h-9 px-3"
+          className="flex-1 flex items-center gap-2 h-10 px-3.5"
           style={{
             borderRadius: 'var(--storex-radius-sm)',
             backgroundColor: 'var(--tg-theme-secondary-bg-color)',
@@ -152,7 +152,7 @@ export default function Search() {
 
       {/* Empty state: history + popular */}
       {showEmptyState && (
-        <div className="px-4 py-4">
+        <div className="px-4 pt-5 pb-4">
           {/* Recent searches */}
           {searchHistory.length > 0 && (
             <div className="mb-6">
@@ -262,7 +262,7 @@ export default function Search() {
       {showResults && (
         <div className="px-4">
           {isSearching ? (
-            <div className="grid grid-cols-2 gap-2 py-4">
+            <div className="grid grid-cols-2 gap-3 py-4">
               {Array.from({ length: 4 }, (_, i) => (
                 <ProductCardSkeleton key={i} />
               ))}
@@ -270,12 +270,12 @@ export default function Search() {
           ) : products.length > 0 ? (
             <>
               <p
-                className="text-[13px] py-3"
+                className="text-[13px] pt-4 pb-3"
                 style={{ color: 'var(--tg-theme-hint-color)' }}
               >
                 {results?.meta.total ?? products.length} ta natija
               </p>
-              <div className="grid grid-cols-2 gap-2 pb-4">
+              <div className="grid grid-cols-2 gap-3 pb-6">
                 {products.map((product) => (
                   <ProductCard key={product.id} product={product} />
                 ))}

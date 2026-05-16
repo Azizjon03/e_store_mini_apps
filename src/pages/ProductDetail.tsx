@@ -221,38 +221,16 @@ export default function ProductDetail() {
       </div>
 
       {/* Product Info */}
-      <div className="px-4 pt-4 pb-24">
-        {/* Price row */}
-        <div className="flex items-baseline gap-2 mb-1">
-          <span className="text-2xl font-bold" style={{ color: 'var(--storex-primary)' }}>
-            {formatPrice(currentPrice)}
-          </span>
-          {product.old_price && (
-            <span className="text-sm line-through" style={{ color: 'var(--storex-price-old)' }}>
-              {formatPrice(product.old_price)}
-            </span>
-          )}
-          {discountPercent > 0 && (
-            <span
-              className="px-1.5 py-0.5 text-[11px] font-bold text-white rounded-md"
-              style={{ backgroundColor: 'var(--storex-price-sale)' }}
-            >
-              -{discountPercent}%
-            </span>
-          )}
-        </div>
-
-        {/* Name */}
+      <div className="px-4 pt-5 pb-28">
         <h1
-          className="text-[17px] font-semibold leading-snug mb-2"
+          className="text-[20px] font-bold leading-snug mb-2"
           style={{ color: 'var(--tg-theme-text-color)' }}
         >
           {t(product.name)}
         </h1>
 
-        {/* Rating */}
         {(product.reviews_count ?? 0) > 0 && (
-          <div className="flex items-center gap-1.5 mb-4">
+          <div className="flex items-center gap-1.5 mb-3">
             <div className="flex gap-0.5">
               {Array.from({ length: 5 }, (_, i) => (
                 <svg key={i} width="14" height="14" viewBox="0 0 12 12" fill={i < Math.round(product.rating ?? 0) ? '#f59e0b' : '#e5e7eb'}>
@@ -269,12 +247,34 @@ export default function ProductDetail() {
           </div>
         )}
 
+        <div className="flex items-baseline gap-2 mb-5">
+          <span className="text-[24px] font-extrabold leading-none" style={{ color: 'var(--storex-primary)' }}>
+            {formatPrice(currentPrice)}
+          </span>
+          {product.old_price && (
+            <span className="text-[14px] line-through" style={{ color: 'var(--storex-price-old)' }}>
+              {formatPrice(product.old_price)}
+            </span>
+          )}
+          {discountPercent > 0 && (
+            <span
+              className="px-2 py-0.5 text-[11px] font-bold text-white"
+              style={{
+                backgroundColor: 'var(--storex-price-sale)',
+                borderRadius: 'var(--storex-radius-xs)',
+              }}
+            >
+              -{discountPercent}%
+            </span>
+          )}
+        </div>
+
         {/* Variants */}
         {variantTypes.map((type) => {
           const variants = product.variants!.filter((v) => v.type === type);
           return (
-            <div key={type} className="mb-4">
-              <p className="text-[13px] font-semibold mb-2" style={{ color: 'var(--tg-theme-text-color)' }}>
+            <div key={type} className="mb-5">
+              <p className="text-[14px] font-semibold mb-2.5" style={{ color: 'var(--tg-theme-text-color)' }}>
                 {type === 'color' ? 'Rang' : type === 'size' ? "O'lcham" : type}
               </p>
               <div className="flex gap-2 flex-wrap">
@@ -322,33 +322,34 @@ export default function ProductDetail() {
         {/* Description */}
         {(product.full_description || product.description) && (
           <>
-            <div
-              className="flex items-center justify-between cursor-pointer mb-2"
+            <button
+              type="button"
+              className="flex items-center justify-between w-full cursor-pointer mb-2.5 press-effect"
               onClick={() => setDescExpanded(!descExpanded)}
             >
-              <h3 className="text-[15px] font-semibold" style={{ color: 'var(--tg-theme-text-color)' }}>
+              <h3 className="text-[16px] font-bold" style={{ color: 'var(--tg-theme-text-color)' }}>
                 Tavsif
               </h3>
               <svg
-                width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--tg-theme-hint-color)" strokeWidth="2"
+                width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--tg-theme-hint-color)" strokeWidth="2"
                 style={{ transform: descExpanded ? 'rotate(180deg)' : 'none', transition: 'transform 200ms' }}
               >
                 <polyline points="6 9 12 15 18 9" />
               </svg>
-            </div>
+            </button>
             {descExpanded && (
-              <p className="text-[13px] leading-5 mb-2" style={{ color: 'var(--tg-theme-text-color)', opacity: 0.8 }}>
+              <p className="text-[14px] leading-[1.55] mb-2" style={{ color: 'var(--tg-theme-text-color)', opacity: 0.8 }}>
                 {t(product.full_description || product.description)}
               </p>
             )}
-            <div className="storex-divider -mx-4 my-4" />
+            <div className="storex-divider -mx-4 my-5" />
           </>
         )}
 
         {/* Attributes / Specs */}
         {product.attributes && Object.keys(product.attributes).length > 0 && (
           <>
-            <h3 className="text-[15px] font-semibold mb-3" style={{ color: 'var(--tg-theme-text-color)' }}>
+            <h3 className="text-[16px] font-bold mb-3" style={{ color: 'var(--tg-theme-text-color)' }}>
               Xususiyatlari
             </h3>
             <div
@@ -358,7 +359,7 @@ export default function ProductDetail() {
               {Object.entries(product.attributes).map(([key, value], i) => (
                 <div
                   key={key}
-                  className="flex justify-between px-3 py-2.5 text-[13px]"
+                  className="flex justify-between px-3.5 py-3 text-[13px]"
                   style={{
                     backgroundColor: i % 2 === 0 ? 'var(--tg-theme-secondary-bg-color)' : 'var(--tg-theme-bg-color)',
                   }}
@@ -368,7 +369,7 @@ export default function ProductDetail() {
                 </div>
               ))}
             </div>
-            <div className="storex-divider -mx-4 my-4" />
+            <div className="storex-divider -mx-4 my-5" />
           </>
         )}
 
@@ -376,7 +377,7 @@ export default function ProductDetail() {
         {product.reviews && product.reviews.length > 0 && (
           <>
             <div className="storex-section-header px-0! mb-3">
-              <h3 className="storex-section-title text-[15px]">
+              <h3 className="storex-section-title text-[16px]">
                 Sharhlar ({product.reviews_count})
               </h3>
               <button className="storex-section-link">Hammasi</button>
@@ -420,19 +421,19 @@ export default function ProductDetail() {
                 </div>
               ))}
             </div>
-            <div className="storex-divider -mx-4 my-4" />
+            <div className="storex-divider -mx-4 my-5" />
           </>
         )}
 
         {/* Similar products */}
         {product.similar_products && product.similar_products.length > 0 && (
           <>
-            <h3 className="text-[15px] font-semibold mb-3" style={{ color: 'var(--tg-theme-text-color)' }}>
+            <h3 className="text-[16px] font-bold mb-3" style={{ color: 'var(--tg-theme-text-color)' }}>
               O'xshash mahsulotlar
             </h3>
-            <div className="flex gap-2 overflow-x-auto scrollbar-hide -mx-4 px-4 pb-2">
+            <div className="flex gap-3 overflow-x-auto scrollbar-hide -mx-4 px-4 pb-2">
               {product.similar_products.map((p) => (
-                <div key={p.id} className="min-w-[150px] max-w-[150px] shrink-0">
+                <div key={p.id} className="min-w-40 max-w-40 shrink-0">
                   <ProductCard product={p} />
                 </div>
               ))}
@@ -441,46 +442,106 @@ export default function ProductDetail() {
         )}
       </div>
 
-      {/* Bottom action bar (non-Telegram fallback) */}
+      {/* Bottom action bar (non-Telegram fallback) — bitta sticky CTA */}
       <div
-        className="fixed bottom-0 left-0 right-0 z-40 px-4 py-3 flex gap-2"
+        className="fixed bottom-0 left-0 right-0 z-40 px-4 py-3"
         style={{
           backgroundColor: 'var(--tg-theme-bg-color)',
           borderTop: '0.5px solid var(--storex-border)',
           paddingBottom: 'calc(12px + env(safe-area-inset-bottom, 0px))',
         }}
       >
-        <button
-          className="flex-1 py-3 text-[14px] font-semibold press-effect flex items-center justify-center gap-1.5"
-          style={{
-            border: '1.5px solid var(--storex-primary)',
-            borderRadius: 'var(--storex-radius-md)',
-            color: 'var(--storex-primary)',
-            backgroundColor: 'var(--tg-theme-bg-color)',
-          }}
-          onClick={handleAddToCart}
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4H6z" />
-            <path d="M3 6h18" />
-            <path d="M16 10a4 4 0 01-8 0" />
-          </svg>
-          {justAdded ? 'Qo\'shildi' : inCart ? 'Savatda' : 'Savatga'}
-        </button>
-        <button
-          className="flex-1 py-3 text-[14px] font-semibold press-effect"
-          style={{
-            backgroundColor: 'var(--storex-primary)',
-            borderRadius: 'var(--storex-radius-md)',
-            color: '#fff',
-          }}
-          onClick={() => {
-            if (!inCart) handleAddToCart();
-            navigate('/checkout');
-          }}
-        >
-          Sotib olish · {formatPrice(currentPrice)}
-        </button>
+        {inCart ? (
+          // Savatda bo'lsa: qty stepper + "Savatga o'tish"
+          <div className="flex items-center gap-2">
+            <div
+              className="flex items-center gap-3 px-2 py-1"
+              style={{
+                backgroundColor: 'var(--tg-theme-secondary-bg-color)',
+                borderRadius: 'var(--storex-radius-md)',
+                border: '1px solid var(--storex-border)',
+              }}
+            >
+              <button
+                className="w-9 h-9 grid place-items-center press-effect"
+                style={{ color: 'var(--storex-primary)' }}
+                onClick={() => {
+                  const cartStore = useCartStore.getState();
+                  if (inCart.quantity > 1) {
+                    cartStore.updateQuantity(inCart.id, inCart.quantity - 1);
+                    haptic.selectionChanged();
+                  } else {
+                    cartStore.removeItem(inCart.id);
+                    haptic.impact('light');
+                  }
+                }}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="5" y1="12" x2="19" y2="12" /></svg>
+              </button>
+              <span
+                className="min-w-[24px] text-center text-[15px] font-semibold"
+                style={{ color: 'var(--tg-theme-text-color)' }}
+              >
+                {inCart.quantity}
+              </span>
+              <button
+                className="w-9 h-9 grid place-items-center press-effect"
+                style={{ color: 'var(--storex-primary)' }}
+                onClick={() => {
+                  useCartStore.getState().updateQuantity(inCart.id, inCart.quantity + 1);
+                  haptic.selectionChanged();
+                }}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+              </button>
+            </div>
+            <button
+              className="flex-1 py-3 text-[14px] font-semibold press-effect"
+              style={{
+                backgroundColor: 'var(--storex-primary)',
+                borderRadius: 'var(--storex-radius-md)',
+                color: '#fff',
+              }}
+              onClick={() => navigate('/cart')}
+            >
+              Savatga o'tish
+            </button>
+          </div>
+        ) : (
+          // Savatda emas: bitta katta CTA
+          <button
+            className="w-full py-3.5 text-[15px] font-semibold press-effect flex items-center justify-center gap-2 disabled:opacity-50"
+            style={{
+              backgroundColor: 'var(--storex-primary)',
+              borderRadius: 'var(--storex-radius-md)',
+              color: '#fff',
+            }}
+            disabled={!product.in_stock || (variantTypes.length > 0 && !allVariantsSelected)}
+            onClick={handleAddToCart}
+          >
+            {!product.in_stock ? (
+              'Hozirda mavjud emas'
+            ) : variantTypes.length > 0 && !allVariantsSelected ? (
+              'Variantni tanlang'
+            ) : justAdded ? (
+              <>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+                Qo'shildi
+              </>
+            ) : (
+              <>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4H6z" />
+                  <path d="M3 6h18" />
+                  <path d="M16 10a4 4 0 01-8 0" />
+                </svg>
+                Savatga qo'shish · {formatPrice(currentPrice)}
+              </>
+            )}
+          </button>
+        )}
       </div>
     </div>
   );

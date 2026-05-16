@@ -80,19 +80,17 @@ export default function Cart() {
 
   return (
     <PageLayout showSearch={false}>
-      <div className="px-4 py-4 pb-20 page-enter">
-        {/* Header */}
+      <div className="px-4 pt-5 pb-24 page-enter">
         <div className="flex items-center justify-between mb-4">
-          <h1 className="text-lg font-bold" style={{ color: 'var(--tg-theme-text-color)' }}>
+          <h1 className="text-[20px] font-bold" style={{ color: 'var(--tg-theme-text-color)' }}>
             Savat
           </h1>
-          <span className="text-sm" style={{ color: 'var(--tg-theme-hint-color)' }}>
+          <span className="text-[13px]" style={{ color: 'var(--tg-theme-hint-color)' }}>
             {items.reduce((s, i) => s + i.quantity, 0)} ta mahsulot
           </span>
         </div>
 
-        {/* Cart items */}
-        <div className="flex flex-col gap-2.5">
+        <div className="flex flex-col gap-3">
           {items.map((item) => (
             <div
               key={item.id}

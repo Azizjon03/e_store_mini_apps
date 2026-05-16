@@ -24,3 +24,11 @@ dist-ssr
 *.sw?
 .env
 env
+
+# MCP config (contains API keys — set up locally per developer)
+.mcp.json
+
+# Tooling artifacts / debug screenshots
+.playwright-mcp/
+.lazyweb/
+profile-stitch-*.png

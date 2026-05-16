@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '@/store/authStore';
@@ -6,237 +7,396 @@ import { PageLayout } from '@/components/layout/PageLayout';
 import { useHaptic } from '@/hooks/useHaptic';
 
 interface MenuItem {
-  icon: React.ReactNode;
+  icon: string;
   label: string;
-  description?: string;
-  path: string;
+  path?: string;
   trailing?: React.ReactNode;
+  onClick?: () => void;
 }
-
-const orderMenuItems: MenuItem[] = [
-  {
-    icon: <BoxIcon />,
-    label: 'Buyurtmalarim',
-    path: '/orders',
-  },
-  {
-    icon: <HeartIcon />,
-    label: 'Sevimlilar',
-    path: '/favorites',
-  },
-];
-
-const settingsMenuItems: MenuItem[] = [
-  {
-    icon: <PinIcon />,
-    label: 'Manzillarim',
-    path: '/profile/addresses',
-  },
-  {
-    icon: <GlobeIcon />,
-    label: 'Til',
-    path: '/profile/language',
-    trailing: <span className="text-[13px]" style={{ color: 'var(--tg-theme-hint-color)' }}>O'zbekcha</span>,
-  },
-];
-
-const supportMenuItems: MenuItem[] = [
-  {
-    icon: <ChatIcon />,
-    label: 'Yordam',
-    path: '/support',
-  },
-  {
-    icon: <InfoIcon />,
-    label: 'Ilova haqida',
-    path: '/about',
-    trailing: <span className="text-[13px]" style={{ color: 'var(--tg-theme-hint-color)' }}>v1.0.0</span>,
-  },
-];
 
 export default function Profile() {
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
+  const logout = useAuthStore((s) => s.logout);
   const haptic = useHaptic();
+  const [notificationsOn, setNotificationsOn] = useState(true);
 
   const { data: profile } = useQuery({
     queryKey: ['profile'],
     queryFn: getProfile,
   });
 
+  const fullName = [user?.first_name, user?.last_name].filter(Boolean).join(' ') || 'Foydalanuvchi';
+  const phoneOrUsername = profile?.phone ?? (user?.username ? `@${user.username}` : '');
+
+  const ordersGroup: MenuItem[] = [
+    { icon: 'package_2', label: 'Buyurtmalarim', path: '/orders' },
+    { icon: 'favorite', label: 'Sevimlilar', path: '/favorites' },
+  ];
+
+  const settingsGroup: MenuItem[] = [
+    { icon: 'location_on', label: 'Manzillarim', path: '/profile/addresses' },
+    {
+      icon: 'language',
+      label: 'Til',
+      path: '/profile/language',
+      trailing: (
+        <span className="text-sm font-semibold" style={{ color: 'var(--stitch-primary)' }}>
+          O'zbekcha
+        </span>
+      ),
+    },
+    {
+      icon: 'notifications',
+      label: 'Bildirishnomalar',
+      trailing: (
+        <Toggle
+          on={notificationsOn}
+          onChange={() => {
+            haptic.selectionChanged();
+            setNotificationsOn((v) => !v);
+          }}
+        />
+      ),
+    },
+  ];
+
+  const supportGroup: MenuItem[] = [
+    { icon: 'chat_bubble', label: 'Yordam', path: '/support' },
+    {
+      icon: 'info',
+      label: 'Ilova haqida',
+      path: '/about',
+      trailing: <VersionPill version="v1.0.0" />,
+    },
+  ];
+
+  const handleLogout = () => {
+    haptic.impact('medium');
+    logout();
+    navigate('/');
+  };
+
   return (
     <PageLayout showSearch={false}>
-      <div className="px-4 py-4 page-enter">
-        {/* User info */}
-        <div className="flex flex-col items-center mb-5">
-          <div
-            className="w-20 h-20 rounded-full flex items-center justify-center text-3xl font-bold mb-3"
-            style={{
-              backgroundColor: 'var(--storex-primary-light)',
-              color: 'var(--storex-primary)',
-            }}
-          >
-            {user?.first_name?.[0]?.toUpperCase() ?? 'U'}
-          </div>
-          <p className="text-lg font-bold" style={{ color: 'var(--tg-theme-text-color)' }}>
-            {user?.first_name} {user?.last_name ?? ''}
-          </p>
-          {user?.username && (
-            <p className="text-sm" style={{ color: 'var(--tg-theme-hint-color)' }}>
-              @{user.username}
-            </p>
-          )}
-          {profile?.phone && (
-            <p className="text-[13px] mt-1" style={{ color: 'var(--tg-theme-hint-color)' }}>
-              {profile.phone}
-            </p>
-          )}
-        </div>
-
-        {/* Quick stats */}
-        <div
-          className="flex items-center justify-around py-3 mb-4"
-          style={{
-            backgroundColor: 'var(--tg-theme-bg-color)',
-            borderRadius: 'var(--storex-radius-lg)',
-            border: 'var(--storex-border-card)',
-            boxShadow: 'var(--storex-shadow-sm)',
-          }}
+      <div
+        className="page-enter"
+        style={{
+          backgroundColor: 'var(--stitch-surface)',
+          minHeight: 'calc(100vh - var(--storex-tabbar-height, 56px))',
+        }}
+      >
+        {/* Top Navigation Bar */}
+        <header
+          className="sticky top-0 z-40 flex items-center justify-between px-6 py-3"
+          style={{ backgroundColor: 'var(--stitch-surface)' }}
         >
-          <StatItem icon={<BoxIcon />} count={profile?.stats?.orders_count ?? 0} label="BUYURTMALAR" onClick={() => navigate('/orders')} />
-          <div className="w-px h-8" style={{ backgroundColor: 'var(--storex-border)' }} />
-          <StatItem icon={<HeartIcon />} count={profile?.stats?.favorites_count ?? 0} label="SEVIMLILAR" onClick={() => navigate('/favorites')} />
-          <div className="w-px h-8" style={{ backgroundColor: 'var(--storex-border)' }} />
-          <StatItem icon={<PinIcon />} count={profile?.stats?.addresses_count ?? 0} label="MANZILLAR" onClick={() => navigate('/profile/addresses')} />
-        </div>
+          <div className="flex items-center gap-4">
+            <button
+              aria-label="Orqaga"
+              className="flex items-center justify-center w-10 h-10 rounded-full press-effect"
+              onClick={() => navigate(-1)}
+              style={{ color: 'var(--stitch-primary)' }}
+            >
+              <span className="material-symbols-outlined">arrow_back</span>
+            </button>
+            <h1
+              className="font-headline font-semibold text-lg"
+              style={{ color: 'var(--stitch-on-surface)' }}
+            >
+              Profil
+            </h1>
+          </div>
+          <button
+            aria-label="Chiqish"
+            className="flex items-center justify-center w-10 h-10 rounded-full press-effect"
+            onClick={handleLogout}
+            style={{ color: 'var(--stitch-primary)' }}
+          >
+            <span className="material-symbols-outlined">logout</span>
+          </button>
+        </header>
 
-        {/* Menu groups */}
-        <MenuGroup title="Buyurtmalar" items={orderMenuItems} navigate={navigate} haptic={haptic} />
-        <MenuGroup title="Sozlamalar" items={settingsMenuItems} navigate={navigate} haptic={haptic} />
-        <MenuGroup title="Qo'llab-quvvatlash" items={supportMenuItems} navigate={navigate} haptic={haptic} />
+        <main className="max-w-md mx-auto px-6 pt-4 pb-32">
+          {/* User Identity */}
+          <section className="flex flex-col items-center mb-8">
+            <div className="relative mb-4">
+              <div
+                className="w-24 h-24 rounded-full overflow-hidden"
+                style={{
+                  border: '4px solid var(--stitch-surface-container-lowest)',
+                  boxShadow: '0 20px 25px -5px rgba(0, 97, 164, 0.05), 0 8px 10px -6px rgba(0, 97, 164, 0.05)',
+                }}
+              >
+                {user?.photo_url ? (
+                  <img
+                    src={user.photo_url}
+                    alt={fullName}
+                    className="w-full h-full object-cover"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <div
+                    className="w-full h-full flex items-center justify-center text-[32px] font-bold"
+                    style={{
+                      backgroundColor: 'var(--stitch-surface-container)',
+                      color: 'var(--stitch-primary)',
+                    }}
+                  >
+                    {user?.first_name?.[0]?.toUpperCase() ?? 'U'}
+                  </div>
+                )}
+              </div>
+              <button
+                aria-label="Tahrirlash"
+                className="absolute bottom-0 right-0 p-2 rounded-full press-effect"
+                style={{
+                  backgroundColor: 'var(--stitch-primary)',
+                  border: '2px solid var(--stitch-surface-container-lowest)',
+                  color: '#fff',
+                  boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)',
+                }}
+              >
+                <span className="material-symbols-outlined filled" style={{ fontSize: 14 }}>
+                  edit
+                </span>
+              </button>
+            </div>
+            <h2
+              className="font-headline font-bold text-2xl tracking-tight"
+              style={{ color: 'var(--stitch-on-surface)' }}
+            >
+              {fullName}
+            </h2>
+            {phoneOrUsername && (
+              <p
+                className="font-body font-medium mt-1"
+                style={{ color: 'var(--stitch-on-surface-variant)' }}
+              >
+                {phoneOrUsername}
+              </p>
+            )}
+          </section>
 
-        {/* Version */}
-        <p className="text-center text-xs mt-6" style={{ color: 'var(--tg-theme-hint-color)' }}>
-          <span className="font-semibold" style={{ color: 'var(--storex-primary)' }}>StoreX</span> v1.0.0
-        </p>
+          {/* Bento Stats Grid */}
+          <section className="grid grid-cols-3 gap-3 mb-8">
+            <StatCard
+              icon="shopping_bag"
+              tint="primary"
+              count={profile?.stats?.orders_count ?? 0}
+              label="Buyurtmalar"
+              onClick={() => navigate('/orders')}
+            />
+            <StatCard
+              icon="favorite"
+              tint="error"
+              count={profile?.stats?.favorites_count ?? 0}
+              label="Sevimlilar"
+              onClick={() => navigate('/favorites')}
+            />
+            <StatCard
+              icon="location_on"
+              tint="secondary"
+              count={profile?.stats?.addresses_count ?? 0}
+              label="Manzillar"
+              onClick={() => navigate('/profile/addresses')}
+            />
+          </section>
+
+          {/* Menu groups */}
+          <MenuGroup title="Buyurtmalar" items={ordersGroup} navigate={navigate} haptic={haptic} />
+          <MenuGroup title="Sozlamalar" items={settingsGroup} navigate={navigate} haptic={haptic} />
+          <MenuGroup title="Qo'llab-quvvatlash" items={supportGroup} navigate={navigate} haptic={haptic} />
+        </main>
       </div>
     </PageLayout>
   );
 }
 
-function StatItem({ icon, count, label, onClick }: { icon: React.ReactNode; count: number; label: string; onClick: () => void }) {
+function StatCard({
+  icon,
+  tint,
+  count,
+  label,
+  onClick,
+}: {
+  icon: string;
+  tint: 'primary' | 'error' | 'secondary';
+  count: number;
+  label: string;
+  onClick: () => void;
+}) {
+  const colorMap = {
+    primary: 'var(--stitch-primary)',
+    error: 'var(--stitch-error)',
+    secondary: 'var(--stitch-secondary)',
+  };
+  const tintBg = {
+    primary: 'rgba(0, 97, 164, 0.1)',
+    error: 'rgba(186, 26, 26, 0.1)',
+    secondary: 'rgba(65, 96, 132, 0.1)',
+  };
   return (
-    <button className="flex flex-col items-center gap-1 px-4 press-effect" onClick={onClick}>
-      <div style={{ color: 'var(--storex-primary)' }}>{icon}</div>
-      <span className="text-lg font-bold" style={{ color: 'var(--tg-theme-text-color)' }}>{count}</span>
-      <span className="text-[9px] font-semibold tracking-wider" style={{ color: 'var(--tg-theme-hint-color)' }}>{label}</span>
+    <button
+      onClick={onClick}
+      className="flex flex-col items-center justify-center text-center press-effect"
+      style={{
+        backgroundColor: 'var(--stitch-surface-container-lowest)',
+        borderRadius: 12,
+        padding: 16,
+        boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+      }}
+    >
+      <div
+        className="w-10 h-10 rounded-full flex items-center justify-center mb-2"
+        style={{ backgroundColor: tintBg[tint], color: colorMap[tint] }}
+      >
+        <span className="material-symbols-outlined filled" style={{ fontSize: 22 }}>
+          {icon}
+        </span>
+      </div>
+      <span
+        className="font-headline font-bold text-xl"
+        style={{ color: 'var(--stitch-on-surface)' }}
+      >
+        {count}
+      </span>
+      <span
+        className="text-[10px] font-semibold uppercase tracking-wider mt-0.5"
+        style={{ color: 'var(--stitch-on-surface-variant)' }}
+      >
+        {label}
+      </span>
     </button>
   );
 }
 
-function MenuGroup({ title, items, navigate, haptic }: { title: string; items: MenuItem[]; navigate: (path: string) => void; haptic: ReturnType<typeof useHaptic> }) {
+function MenuGroup({
+  title,
+  items,
+  navigate,
+  haptic,
+}: {
+  title: string;
+  items: MenuItem[];
+  navigate: (path: string) => void;
+  haptic: ReturnType<typeof useHaptic>;
+}) {
   return (
-    <div className="mb-3">
-      <p className="text-[13px] font-semibold mb-1.5 px-1" style={{ color: 'var(--tg-theme-hint-color)' }}>
+    <div className="mb-6">
+      <h3
+        className="font-headline font-bold text-sm mb-3 px-1"
+        style={{ color: 'var(--stitch-on-surface-variant)' }}
+      >
         {title}
-      </p>
+      </h3>
       <div
         className="overflow-hidden"
         style={{
-          backgroundColor: 'var(--tg-theme-bg-color)',
-          borderRadius: 'var(--storex-radius-lg)',
-          border: 'var(--storex-border-card)',
-          boxShadow: 'var(--storex-shadow-sm)',
+          backgroundColor: 'var(--stitch-surface-container-lowest)',
+          borderRadius: 16,
+          boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
         }}
       >
-        {items.map((item, index) => (
-          <button
-            key={item.path}
-            className="flex items-center w-full px-4 py-3 text-left press-effect"
-            style={{
-              borderBottom: index < items.length - 1 ? '1px solid var(--storex-border)' : 'none',
-            }}
-            onClick={() => {
+        {items.map((item, idx) => {
+          const isLast = idx === items.length - 1;
+          const interactive = !!(item.path || item.onClick);
+          const handleActivate = () => {
+            if (item.onClick) {
+              item.onClick();
+            } else if (item.path) {
               haptic.selectionChanged();
               navigate(item.path);
-            }}
-          >
-            <div
-              className="w-9 h-9 flex items-center justify-center shrink-0"
-              style={{
-                backgroundColor: 'var(--storex-primary-light)',
-                borderRadius: 'var(--storex-radius-sm)',
-                color: 'var(--storex-primary)',
-              }}
-            >
-              {item.icon}
+            }
+          };
+          const rowContent = (
+            <>
+              <span
+                className="material-symbols-outlined"
+                style={{ color: 'var(--stitch-on-surface-variant)', fontSize: 22 }}
+              >
+                {item.icon}
+              </span>
+              <span
+                className="flex-1 font-body font-medium text-[15px]"
+                style={{ color: 'var(--stitch-on-surface)' }}
+              >
+                {item.label}
+              </span>
+              {item.trailing}
+              {item.path && (
+                <span
+                  className="material-symbols-outlined"
+                  style={{ color: 'var(--stitch-outline-variant)', fontSize: 20 }}
+                >
+                  chevron_right
+                </span>
+              )}
+            </>
+          );
+          return (
+            <div key={item.label}>
+              {interactive ? (
+                <button
+                  type="button"
+                  className="flex items-center gap-4 w-full text-left press-effect py-4 px-5"
+                  onClick={handleActivate}
+                >
+                  {rowContent}
+                </button>
+              ) : (
+                <div className="flex items-center gap-4 w-full py-4 px-5">{rowContent}</div>
+              )}
+              {!isLast && (
+                <div
+                  className="mx-5"
+                  style={{ borderBottom: '1px solid var(--stitch-surface-container)' }}
+                />
+              )}
             </div>
-            <span className="text-sm font-medium ml-3 flex-1" style={{ color: 'var(--tg-theme-text-color)' }}>
-              {item.label}
-            </span>
-            {item.trailing}
-            <svg className="ml-2" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--tg-theme-hint-color)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="9 18 15 12 9 6" />
-            </svg>
-          </button>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
 }
 
-/* Icons */
-function BoxIcon() {
+function Toggle({ on, onChange }: { on: boolean; onChange: () => void }) {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z" />
-      <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
-      <line x1="12" y1="22.08" x2="12" y2="12" />
-    </svg>
+    <button
+      role="switch"
+      aria-checked={on}
+      className="relative w-11 h-6 rounded-full transition-colors duration-200"
+      style={{
+        backgroundColor: on ? 'var(--stitch-primary)' : 'var(--stitch-surface-container-highest)',
+      }}
+      onClick={(e) => {
+        e.stopPropagation();
+        onChange();
+      }}
+    >
+      <span
+        className="absolute top-0.5 w-5 h-5 rounded-full bg-white transition-all duration-200"
+        style={{
+          left: on ? 22 : 2,
+          boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+          border: on ? 'none' : '1px solid #d1d5db',
+        }}
+      />
+    </button>
   );
 }
 
-function HeartIcon() {
+function VersionPill({ version }: { version: string }) {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" />
-    </svg>
-  );
-}
-
-function PinIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" />
-      <circle cx="12" cy="10" r="3" />
-    </svg>
-  );
-}
-
-function GlobeIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="10" />
-      <line x1="2" y1="12" x2="22" y2="12" />
-      <path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z" />
-    </svg>
-  );
-}
-
-function ChatIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
-    </svg>
-  );
-}
-
-function InfoIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="10" />
-      <line x1="12" y1="16" x2="12" y2="12" />
-      <line x1="12" y1="8" x2="12.01" y2="8" />
-    </svg>
+    <span
+      className="text-xs font-mono px-2 py-1 rounded"
+      style={{
+        backgroundColor: 'var(--stitch-surface-container)',
+        color: 'var(--stitch-on-surface-variant)',
+      }}
+    >
+      {version}
+    </span>
   );
 }

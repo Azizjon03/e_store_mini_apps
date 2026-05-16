@@ -12,7 +12,7 @@ export function ProductGrid({ products, isLoading, skeletonCount = 4 }: ProductG
   if (isLoading) {
     return (
       <div className="px-4">
-        <div className="grid grid-cols-2 gap-2.5 items-stretch">
+        <div className="grid grid-cols-2 gap-3 items-stretch">
           {Array.from({ length: skeletonCount }, (_, i) => (
             <ProductCardSkeleton key={i} />
           ))}
@@ -23,7 +23,7 @@ export function ProductGrid({ products, isLoading, skeletonCount = 4 }: ProductG
 
   return (
     <div className="px-4">
-      <div className="grid grid-cols-2 gap-2.5 items-stretch">
+      <div className="grid grid-cols-2 gap-3 items-stretch">
         {products.map((product) => (
           <ProductCard key={product.id} product={product} />
         ))}

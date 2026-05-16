@@ -41,16 +41,11 @@ export function ProductCard({ product }: ProductCardProps) {
   );
 
   const discountPercent = product.discount_percent || product.discount_percentage || 0;
+  const hasOldPrice = !!(product.old_price || product.compare_price);
 
   return (
     <div
-      className="flex flex-col cursor-pointer overflow-hidden press-effect min-w-0 h-full"
-      style={{
-        backgroundColor: 'var(--tg-theme-bg-color)',
-        borderRadius: 'var(--storex-radius-md)',
-        border: 'var(--storex-border-card)',
-        boxShadow: 'var(--storex-shadow-sm)',
-      }}
+      className="flex flex-col cursor-pointer overflow-hidden press-effect min-w-0 h-full storex-surface"
       onClick={() => {
         haptic.selectionChanged();
         navigate(`/product/${product.slug}`);
@@ -84,8 +79,11 @@ export function ProductCard({ product }: ProductCardProps) {
         {/* Discount badge */}
         {discountPercent > 0 && (
           <span
-            className="absolute top-2 left-2 px-1.5 py-0.5 text-[10px] font-bold text-white rounded-md"
-            style={{ backgroundColor: 'var(--storex-price-sale)' }}
+            className="absolute top-2 left-2 px-1.5 py-0.5 text-[10px] font-bold text-white uppercase tracking-wide"
+            style={{
+              backgroundColor: 'var(--storex-price-sale)',
+              borderRadius: 'var(--storex-radius-xs)',
+            }}
           >
             -{discountPercent}%
           </span>
@@ -93,8 +91,9 @@ export function ProductCard({ product }: ProductCardProps) {
 
         {/* Favorite button */}
         <button
-          className="absolute top-2 right-2 w-7 h-7 rounded-full flex items-center justify-center"
-          style={{ backgroundColor: 'rgba(255,255,255,0.9)' }}
+          aria-label={isFavorite ? 'Sevimlilardan olib tashlash' : 'Sevimlilarga qo\'shish'}
+          className="absolute top-2 right-2 w-7 h-7 rounded-full flex items-center justify-center press-effect"
+          style={{ backgroundColor: 'rgba(255,255,255,0.92)' }}
           onClick={(e) => {
             e.stopPropagation();
             toggleFavorite();
@@ -113,36 +112,16 @@ export function ProductCard({ product }: ProductCardProps) {
       </div>
 
       {/* Info */}
-      <div className="p-2.5 flex flex-col gap-1 flex-1">
-        {/* Product name */}
+      <div className="px-3 pt-3 pb-3 flex flex-col gap-2 flex-1">
         <p
-          className="text-[13px] leading-[1.3] line-clamp-2 font-medium"
+          className="text-[13px] leading-[1.35] line-clamp-2 font-medium"
           style={{ color: 'var(--tg-theme-text-color)' }}
         >
           {t(product.name)}
         </p>
 
-        {/* Price */}
-        <div className="flex items-baseline gap-1.5 mt-0.5 min-w-0">
-          <span
-            className="text-[14px] font-bold leading-tight truncate"
-            style={{ color: 'var(--tg-theme-text-color)' }}
-          >
-            {formatPrice(product.price)}
-          </span>
-        </div>
-        {(product.old_price || product.compare_price) && (
-          <span
-            className="text-[11px] line-through leading-none"
-            style={{ color: 'var(--storex-price-old)' }}
-          >
-            {formatPrice((product.old_price || product.compare_price)!)}
-          </span>
-        )}
-
-        {/* Rating */}
         {product.rating && product.rating > 0 && (
-          <div className="flex items-center gap-1 mt-0.5">
+          <div className="flex items-center gap-1">
             <svg width="11" height="11" viewBox="0 0 12 12" fill="#f59e0b">
               <path d="M6 0l1.76 3.57 3.94.57-2.85 2.78.67 3.93L6 8.89 2.48 10.85l.67-3.93L.3 4.14l3.94-.57z" />
             </svg>
@@ -153,29 +132,54 @@ export function ProductCard({ product }: ProductCardProps) {
           </div>
         )}
 
-        {/* Add to cart */}
-        <button
-          className="mt-auto h-7.5 text-[12px] font-semibold transition-all duration-150 active:scale-[0.95] flex items-center justify-center gap-1"
-          style={{
-            borderRadius: 'var(--storex-radius-sm)',
-            backgroundColor: added ? 'var(--storex-success)' : 'var(--storex-primary)',
-            color: '#fff',
-          }}
-          onClick={handleAddToCart}
-        >
-          {added ? (
-            <>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
-              Qo'shildi
-            </>
-          ) : product.in_stock !== false ? (
-            'SAVATGA'
-          ) : (
-            'Mavjud emas'
+        <div className="flex flex-col mt-auto">
+          <span
+            className="text-[15px] font-bold leading-tight truncate"
+            style={{
+              color: product.in_stock === false
+                ? 'var(--tg-theme-hint-color)'
+                : hasOldPrice
+                  ? 'var(--storex-price-sale)'
+                  : 'var(--tg-theme-text-color)',
+            }}
+          >
+            {formatPrice(product.price)}
+          </span>
+          {hasOldPrice && (
+            <span
+              className="text-[12px] line-through leading-none mt-0.5"
+              style={{ color: 'var(--storex-price-old)' }}
+            >
+              {formatPrice((product.old_price || product.compare_price)!)}
+            </span>
           )}
-        </button>
+
+          {product.in_stock !== false ? (
+            <button
+              aria-label={added ? "Qo'shildi" : "Sotib olish"}
+              className="w-full mt-2.5 h-8 text-[12px] font-semibold tracking-wide uppercase transition-all duration-150 active:scale-[0.98]"
+              style={{
+                borderRadius: 'var(--storex-radius-sm)',
+                backgroundColor: added ? 'var(--storex-success)' : 'var(--storex-primary)',
+                color: '#fff',
+              }}
+              onClick={handleAddToCart}
+            >
+              {added ? '✓ Qo\'shildi' : 'Sotib olish'}
+            </button>
+          ) : (
+            <span
+              className="w-full mt-2.5 h-8 grid place-items-center text-[11px] font-medium"
+              style={{
+                backgroundColor: 'var(--tg-theme-secondary-bg-color)',
+                color: 'var(--tg-theme-hint-color)',
+                borderRadius: 'var(--storex-radius-sm)',
+              }}
+            >
+              Mavjud emas
+            </span>
+          )}
+        </div>
       </div>
     </div>
   );
