@@ -16,8 +16,10 @@ jobs:
           username: ${{ secrets.SSH_USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
+            set -e
             cd /var/www/estore/e_store_mini_apps
             git pull origin main
-            npm install
+            rm -rf dist
+            npm ci
             npm run build
             echo "Shop app deployed!"
