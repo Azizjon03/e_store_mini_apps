@@ -2,10 +2,10 @@ import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useCartStore } from '@/store/cartStore';
-import { useMainButton } from '@/hooks/useMainButton';
 import { useHaptic } from '@/hooks/useHaptic';
 import { PageLayout } from '@/components/layout/PageLayout';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { SubmitBar } from '@/components/ui/SubmitBar';
 import { formatPrice, t } from '@/lib/format';
 import { applyPromoCode, removePromoCode as removePromoApi, getCart } from '@/api/storefront';
 
@@ -58,12 +58,6 @@ export default function Cart() {
     haptic.impact('medium');
     navigate('/checkout');
   }, [haptic, navigate]);
-
-  useMainButton({
-    text: items.length > 0 ? `Buyurtma berish · ${formatPrice(total())}` : undefined,
-    isVisible: items.length > 0,
-    onClick: handleCheckout,
-  });
 
   if (items.length === 0) {
     return (
@@ -328,19 +322,13 @@ export default function Cart() {
           </div>
         </div>
 
-        {/* Bottom checkout button (fallback for non-Telegram) */}
-        <button
-          className="w-full mt-4 py-3.5 text-[15px] font-bold press-effect"
-          style={{
-            backgroundColor: 'var(--storex-primary)',
-            color: '#fff',
-            borderRadius: 'var(--storex-radius-md)',
-          }}
-          onClick={handleCheckout}
-        >
-          Buyurtma berish · {formatPrice(total())}
-        </button>
       </div>
+
+      <SubmitBar
+        text={`Buyurtma berish · ${formatPrice(total())}`}
+        onClick={handleCheckout}
+        aboveTabBar
+      />
     </PageLayout>
   );
 }

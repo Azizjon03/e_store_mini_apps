@@ -4,21 +4,15 @@ import { useQuery, useMutation } from '@tanstack/react-query';
 import { getAddresses, checkout, getDeliverySlots, getPaymentMethods } from '@/api/storefront';
 import { useAppStore } from '@/store/appStore';
 import { useCartStore } from '@/store/cartStore';
-import { useMainButton } from '@/hooks/useMainButton';
 import { useBackButton } from '@/hooks/useBackButton';
 import { useHaptic } from '@/hooks/useHaptic';
 import { formatPrice, t } from '@/lib/format';
 import { showToast } from '@/lib/toast';
 import { Spinner } from '@/components/ui/Spinner';
 import { isTelegramWebApp, WebApp } from '@/lib/telegram';
+import { SubmitBar } from '@/components/ui/SubmitBar';
 
 type DeliveryMethod = 'delivery' | 'pickup';
-
-const STEPS = [
-  { key: 'address', label: 'Manzil' },
-  { key: 'delivery', label: 'Yetkazish' },
-  { key: 'payment', label: "To'lov" },
-];
 
 export default function Checkout() {
   const navigate = useNavigate();
@@ -64,8 +58,27 @@ export default function Checkout() {
     : null;
   const selectedAddress = userSelectedAddress ?? defaultAddress;
 
-  // Determine current step for progress bar
-  const currentStep = selectedAddress ? (deliveryMethod ? 2 : 1) : 0;
+  // Address only required when courier delivery is chosen
+  const needsAddress = deliveryMethod === 'delivery';
+
+  // Step progress: pickup has 2 steps (delivery → payment), delivery has 3 (delivery → address → payment)
+  const steps = needsAddress
+    ? [
+        { key: 'delivery', label: 'Yetkazish' },
+        { key: 'address', label: 'Manzil' },
+        { key: 'payment', label: "To'lov" },
+      ]
+    : [
+        { key: 'delivery', label: 'Yetkazish' },
+        { key: 'payment', label: "To'lov" },
+      ];
+  const currentStep = !deliveryMethod
+    ? 0
+    : needsAddress
+      ? selectedAddress
+        ? 2
+        : 1
+      : 1;
 
   const configDeliveryCost = storeConfig?.delivery_info?.delivery_cost ?? 15000;
 
@@ -78,12 +91,12 @@ export default function Checkout() {
 
   const checkoutMutation = useMutation({
     mutationFn: () => {
-      if (selectedAddress === null) throw new Error('No address selected');
+      if (needsAddress && selectedAddress === null) throw new Error('No address selected');
       return checkout({
-        address_id: selectedAddress,
+        address_id: needsAddress ? selectedAddress! : undefined,
         delivery_method: deliveryMethod,
         payment_method: paymentMethod,
-        delivery_slot_id: selectedSlotId ?? undefined,
+        delivery_slot_id: needsAddress ? (selectedSlotId ?? undefined) : undefined,
         notes: notes || undefined,
         promo_code: promoCode ?? undefined,
       });
@@ -106,28 +119,23 @@ export default function Checkout() {
     },
   });
 
-  const canSubmit = selectedAddress !== null && items.length > 0 && !checkoutMutation.isPending;
+  const canSubmit =
+    items.length > 0
+    && !checkoutMutation.isPending
+    && (!needsAddress || selectedAddress !== null);
 
   const handleSubmit = useCallback(() => {
     if (!canSubmit) return;
     checkoutMutation.mutate();
   }, [canSubmit, checkoutMutation]);
 
-  useMainButton({
-    text: `To'lovga o'tish - ${formatPrice(total())}`,
-    isVisible: true,
-    isActive: canSubmit,
-    isLoading: checkoutMutation.isPending,
-    onClick: handleSubmit,
-  });
-
   return (
-    <div className="min-h-screen pb-20" style={{ backgroundColor: 'var(--tg-theme-secondary-bg-color)' }}>
+    <div className="min-h-screen pb-32" style={{ backgroundColor: 'var(--tg-theme-secondary-bg-color)' }}>
       {/* Step Progress Bar */}
       <div className="px-4 pt-4 pb-3" style={{ backgroundColor: 'var(--tg-theme-bg-color)' }}>
         <div className="flex items-center justify-between">
-          {STEPS.map((step, index) => (
-            <div key={step.key} className="flex items-center" style={{ flex: index < STEPS.length - 1 ? 1 : 'none' }}>
+          {steps.map((step, index) => (
+            <div key={step.key} className="flex items-center" style={{ flex: index < steps.length - 1 ? 1 : 'none' }}>
               <div className="flex flex-col items-center gap-1">
                 <div
                   className="w-8 h-8 rounded-full flex items-center justify-center text-[13px] font-bold"
@@ -151,7 +159,7 @@ export default function Checkout() {
                   {step.label}
                 </span>
               </div>
-              {index < STEPS.length - 1 && (
+              {index < steps.length - 1 && (
                 <div
                   className="flex-1 h-0.5 mx-2 -mt-4"
                   style={{
@@ -164,86 +172,7 @@ export default function Checkout() {
         </div>
       </div>
 
-      {/* Step 1: Address */}
-      <div className="storex-divider" />
-      <section style={{ backgroundColor: 'var(--tg-theme-bg-color)' }}>
-        <div className="px-4 py-3">
-          <div className="storex-section-header" style={{ padding: 0, marginBottom: 12 }}>
-            <span className="storex-section-title" style={{ fontSize: 15 }}>Yetkazish manzili</span>
-            <button
-              className="storex-section-link"
-              onClick={() => navigate('/profile/addresses')}
-            >
-              Tahrirlash
-            </button>
-          </div>
-
-          {addressesLoading ? (
-            <Spinner className="py-4" />
-          ) : addresses && addresses.length > 0 ? (
-            <div className="flex flex-col gap-2">
-              {addresses.map((addr) => {
-                const isSelected = selectedAddress === addr.id;
-                return (
-                  <button
-                    key={addr.id}
-                    className="storex-card press-effect flex items-start gap-3 p-3 text-left w-full"
-                    style={{
-                      border: isSelected
-                        ? '1.5px solid var(--storex-primary)'
-                        : '1.5px solid var(--storex-border)',
-                    }}
-                    onClick={() => {
-                      setUserSelectedAddress(addr.id);
-                      haptic.selectionChanged();
-                    }}
-                  >
-                    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" className="shrink-0 mt-0.5" style={{ color: 'var(--storex-primary)' }}>
-                      <path d="M9 1.5C5.96 1.5 3.5 3.96 3.5 7c0 4.5 5.5 9.5 5.5 9.5s5.5-5 5.5-9.5c0-3.04-2.46-5.5-5.5-5.5z" fill="currentColor" opacity="0.15" />
-                      <path d="M9 1.5C5.96 1.5 3.5 3.96 3.5 7c0 4.5 5.5 9.5 5.5 9.5s5.5-5 5.5-9.5c0-3.04-2.46-5.5-5.5-5.5z" stroke="currentColor" strokeWidth="1.2" />
-                      <circle cx="9" cy="7" r="2" fill="currentColor" />
-                    </svg>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[15px] font-medium" style={{ color: 'var(--tg-theme-text-color)' }}>
-                        {addr.label} {addr.is_primary && <span className="text-[11px]" style={{ color: 'var(--tg-theme-hint-color)' }}>(asosiy)</span>}
-                      </p>
-                      <p className="text-[13px] mt-0.5 line-clamp-1" style={{ color: 'var(--tg-theme-hint-color)' }}>
-                        {addr.city}, {addr.district}, {addr.full_address}
-                      </p>
-                    </div>
-                    <div
-                      className="w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 mt-1"
-                      style={{ borderColor: isSelected ? 'var(--storex-primary)' : 'var(--tg-theme-hint-color)' }}
-                    >
-                      {isSelected && (
-                        <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: 'var(--storex-primary)' }} />
-                      )}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          ) : (
-            <div
-              className="storex-card p-4 text-center"
-              style={{ border: '1px dashed var(--storex-border)' }}
-            >
-              <p className="text-[13px]" style={{ color: 'var(--tg-theme-hint-color)' }}>
-                Manzil topilmadi
-              </p>
-            </div>
-          )}
-          <button
-            className="mt-3 text-[13px] font-medium"
-            style={{ color: 'var(--storex-primary)' }}
-            onClick={() => navigate('/profile/addresses/new')}
-          >
-            + Yangi manzil qo'shish
-          </button>
-        </div>
-      </section>
-
-      {/* Step 2: Delivery method */}
+      {/* Step 1: Delivery method (chosen first so we know whether to ask for address) */}
       <div className="storex-divider" />
       <section style={{ backgroundColor: 'var(--tg-theme-bg-color)' }}>
         <div className="px-4 py-3">
@@ -363,6 +292,89 @@ export default function Checkout() {
           )}
         </div>
       </section>
+
+      {/* Step 2: Address — only when delivery method needs an address */}
+      {needsAddress && (
+        <>
+          <div className="storex-divider" />
+          <section style={{ backgroundColor: 'var(--tg-theme-bg-color)' }}>
+            <div className="px-4 py-3">
+              <div className="storex-section-header" style={{ padding: 0, marginBottom: 12 }}>
+                <span className="storex-section-title" style={{ fontSize: 15 }}>Yetkazish manzili</span>
+                <button
+                  className="storex-section-link"
+                  onClick={() => navigate('/profile/addresses')}
+                >
+                  Tahrirlash
+                </button>
+              </div>
+
+              {addressesLoading ? (
+                <Spinner className="py-4" />
+              ) : addresses && addresses.length > 0 ? (
+                <div className="flex flex-col gap-2">
+                  {addresses.map((addr) => {
+                    const isSelected = selectedAddress === addr.id;
+                    return (
+                      <button
+                        key={addr.id}
+                        className="storex-card press-effect flex items-start gap-3 p-3 text-left w-full"
+                        style={{
+                          border: isSelected
+                            ? '1.5px solid var(--storex-primary)'
+                            : '1.5px solid var(--storex-border)',
+                        }}
+                        onClick={() => {
+                          setUserSelectedAddress(addr.id);
+                          haptic.selectionChanged();
+                        }}
+                      >
+                        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" className="shrink-0 mt-0.5" style={{ color: 'var(--storex-primary)' }}>
+                          <path d="M9 1.5C5.96 1.5 3.5 3.96 3.5 7c0 4.5 5.5 9.5 5.5 9.5s5.5-5 5.5-9.5c0-3.04-2.46-5.5-5.5-5.5z" fill="currentColor" opacity="0.15" />
+                          <path d="M9 1.5C5.96 1.5 3.5 3.96 3.5 7c0 4.5 5.5 9.5 5.5 9.5s5.5-5 5.5-9.5c0-3.04-2.46-5.5-5.5-5.5z" stroke="currentColor" strokeWidth="1.2" />
+                          <circle cx="9" cy="7" r="2" fill="currentColor" />
+                        </svg>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[15px] font-medium" style={{ color: 'var(--tg-theme-text-color)' }}>
+                            {addr.label} {addr.is_primary && <span className="text-[11px]" style={{ color: 'var(--tg-theme-hint-color)' }}>(asosiy)</span>}
+                          </p>
+                          <p className="text-[13px] mt-0.5 line-clamp-1" style={{ color: 'var(--tg-theme-hint-color)' }}>
+                            {addr.city}, {addr.district}, {addr.full_address}
+                          </p>
+                        </div>
+                        <div
+                          className="w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 mt-1"
+                          style={{ borderColor: isSelected ? 'var(--storex-primary)' : 'var(--tg-theme-hint-color)' }}
+                        >
+                          {isSelected && (
+                            <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: 'var(--storex-primary)' }} />
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div
+                  className="storex-card p-4 text-center"
+                  style={{ border: '1px dashed var(--storex-border)' }}
+                >
+                  <p className="text-[13px]" style={{ color: 'var(--tg-theme-hint-color)' }}>
+                    Manzil topilmadi
+                  </p>
+                </div>
+              )}
+              <button
+                className="mt-3 text-[13px] font-medium"
+                style={{ color: 'var(--storex-primary)' }}
+                onClick={() => navigate('/profile/addresses/new')}
+              >
+                + Yangi manzil qo'shish
+              </button>
+            </div>
+          </section>
+        </>
+      )}
 
       {/* Step 3: Payment method */}
       <div className="storex-divider" />
@@ -529,6 +541,14 @@ export default function Checkout() {
           </div>
         </div>
       </section>
+
+      <SubmitBar
+        text={`To'lovga o'tish — ${formatPrice(total())}`}
+        onClick={handleSubmit}
+        disabled={!canSubmit}
+        loading={checkoutMutation.isPending}
+        hint={needsAddress && selectedAddress === null ? 'Avval manzilni tanlang' : undefined}
+      />
     </div>
   );
 }

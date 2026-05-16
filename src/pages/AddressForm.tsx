@@ -2,9 +2,9 @@ import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getAddresses, createAddress, updateAddress } from '@/api/storefront';
-import { useMainButton } from '@/hooks/useMainButton';
 import { useHaptic } from '@/hooks/useHaptic';
 import { showToast } from '@/lib/toast';
+import { SubmitBar } from '@/components/ui/SubmitBar';
 import type { Address } from '@/api/types';
 
 const LABELS = ['Uy', 'Ish', 'Boshqa'];
@@ -78,18 +78,12 @@ function AddressFormFields({ existing, isEdit, addressId }: {
 
   const isValid = city.trim() && district.trim() && fullAddress.trim();
 
-  useMainButton({
-    text: 'Saqlash',
-    isVisible: true,
-    isActive: !!isValid && !saveMutation.isPending,
-    isLoading: saveMutation.isPending,
-    onClick: () => {
-      if (isValid) saveMutation.mutate();
-    },
-  });
+  const handleSave = () => {
+    if (isValid) saveMutation.mutate();
+  };
 
   return (
-    <div className="min-h-screen pb-20" style={{ backgroundColor: 'var(--tg-theme-bg-color)' }}>
+    <div className="min-h-screen pb-32" style={{ backgroundColor: 'var(--tg-theme-bg-color)' }}>
       <div className="px-4 py-4 flex flex-col gap-5">
         {/* Label */}
         <div>
@@ -216,6 +210,13 @@ function AddressFormFields({ existing, isEdit, addressId }: {
           </button>
         </div>
       </div>
+
+      <SubmitBar
+        text={isEdit ? 'Manzilni yangilash' : "Manzilni saqlash"}
+        onClick={handleSave}
+        disabled={!isValid}
+        loading={saveMutation.isPending}
+      />
     </div>
   );
 }

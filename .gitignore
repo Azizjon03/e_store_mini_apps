@@ -31,4 +31,4 @@ env
 # Tooling artifacts / debug screenshots
 .playwright-mcp/
 .lazyweb/
-profile-stitch-*.png
+/*.png

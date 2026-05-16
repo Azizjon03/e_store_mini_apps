@@ -4,7 +4,6 @@ import { useQuery } from '@tanstack/react-query';
 import { getProductDetail } from '@/api/storefront';
 import { formatPrice, formatDate, t } from '@/lib/format';
 import { useCartStore } from '@/store/cartStore';
-import { useMainButton } from '@/hooks/useMainButton';
 import { useHaptic } from '@/hooks/useHaptic';
 import { useBackButton } from '@/hooks/useBackButton';
 import { Skeleton } from '@/components/ui/Skeleton';
@@ -73,23 +72,6 @@ export default function ProductDetail() {
     if (addedTimerRef.current) clearTimeout(addedTimerRef.current);
     addedTimerRef.current = setTimeout(() => setJustAdded(false), 1500);
   }, [product, variantTypes, allVariantsSelected, inCart, addItem, selectedVariant, haptic, navigate]);
-
-  const mainButtonText = !product?.in_stock
-    ? 'Hozirda mavjud emas'
-    : variantTypes.length > 0 && !allVariantsSelected
-      ? 'Variantni tanlang'
-      : justAdded
-        ? '✓ Qo\'shildi'
-        : inCart
-          ? `Savatda (${inCart.quantity}) — Savatga o'tish`
-          : `Savatga qo'shish — ${formatPrice(currentPrice)}`;
-
-  useMainButton({
-    text: mainButtonText,
-    isVisible: !!product,
-    isActive: product?.in_stock && (variantTypes.length === 0 || allVariantsSelected) && !justAdded,
-    onClick: handleAddToCart,
-  });
 
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartX.current = e.touches[0].clientX;
