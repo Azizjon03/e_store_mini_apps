@@ -22,4 +22,9 @@ jobs:
             rm -rf dist
             npm ci
             npm run build
+            # Recreate nginx so its bind mount picks up the new dist inode;
+            # without this, the container keeps serving the now-deleted
+            # directory and returns 403 "directory index ... is forbidden".
+            cd /var/www/estore/e_store_back
+            docker compose up -d --force-recreate nginx
             echo "Shop app deployed!"
