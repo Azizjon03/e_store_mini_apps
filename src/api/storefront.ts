@@ -95,6 +95,9 @@ export const applyPromoCode = (code: string, order_amount?: number) =>
 export const removePromoCode = () =>
   apiClient.delete('/cart/promo').then((r) => r.data);
 
+export const clearCart = () =>
+  apiClient.delete('/cart/clear').then((r) => r.data);
+
 // Checkout (Sanctum auth)
 export const getDeliverySlots = () =>
   apiClient
