@@ -26,8 +26,8 @@ export default function Profile() {
     queryFn: getProfile,
   });
 
-  const fullName = [user?.first_name, user?.last_name].filter(Boolean).join(' ') || 'Foydalanuvchi';
-  const phoneOrUsername = profile?.phone ?? (user?.username ? `@${user.username}` : '');
+  const fullName = user?.name || 'Foydalanuvchi';
+  const phoneOrUsername = profile?.phone ?? user?.phone ?? '';
 
   const ordersGroup: MenuItem[] = [
     { icon: 'package_2', label: 'Buyurtmalarim', path: '/orders' },
@@ -128,9 +128,9 @@ export default function Profile() {
                   boxShadow: '0 20px 25px -5px rgba(0, 97, 164, 0.05), 0 8px 10px -6px rgba(0, 97, 164, 0.05)',
                 }}
               >
-                {user?.photo_url ? (
+                {user?.avatar ? (
                   <img
-                    src={user.photo_url}
+                    src={user.avatar}
                     alt={fullName}
                     className="w-full h-full object-cover"
                     referrerPolicy="no-referrer"
@@ -143,7 +143,7 @@ export default function Profile() {
                       color: 'var(--stitch-primary)',
                     }}
                   >
-                    {user?.first_name?.[0]?.toUpperCase() ?? 'U'}
+                    {user?.name?.[0]?.toUpperCase() ?? 'U'}
                   </div>
                 )}
               </div>

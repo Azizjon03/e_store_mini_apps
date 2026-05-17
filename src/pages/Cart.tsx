@@ -8,10 +8,12 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { SubmitBar } from '@/components/ui/SubmitBar';
 import { formatPrice, t } from '@/lib/format';
 import { applyPromoCode, removePromoCode as removePromoApi, getCart } from '@/api/storefront';
+import { useAuthStore } from '@/store/authStore';
 
 export default function Cart() {
   const navigate = useNavigate();
   const haptic = useHaptic();
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const items = useCartStore((s) => s.items);
   const updateQuantity = useCartStore((s) => s.updateQuantity);
   const subtotal = useCartStore((s) => s.subtotal);
@@ -25,7 +27,7 @@ export default function Cart() {
   const { data: cartData } = useQuery({
     queryKey: ['cart'],
     queryFn: getCart,
-    enabled: items.length > 0,
+    enabled: items.length > 0 && isAuthenticated,
   });
 
   const [promoInput, setPromoInput] = useState('');

@@ -13,10 +13,13 @@ interface ProductCardProps {
 export function ProductCard({ product }: ProductCardProps) {
   const navigate = useNavigate();
   const addItem = useCartStore((s) => s.addItem);
+  const cartItems = useCartStore((s) => s.items);
   const haptic = useHaptic();
   const [added, setAdded] = useState(false);
   const addedTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const { isFavorite, toggle: toggleFavorite } = useFavorite(product.id);
+
+  const inCart = cartItems.some((i) => i.product_id === product.id);
 
   useEffect(() => {
     return () => {
@@ -24,9 +27,14 @@ export function ProductCard({ product }: ProductCardProps) {
     };
   }, []);
 
-  const handleAddToCart = useCallback(
+  const handleCartAction = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation();
+      if (inCart) {
+        haptic.selectionChanged();
+        navigate('/cart');
+        return;
+      }
       if (product.variants && product.variants.length > 0) {
         navigate(`/product/${product.slug}`);
         return;
@@ -37,7 +45,7 @@ export function ProductCard({ product }: ProductCardProps) {
       if (addedTimerRef.current) clearTimeout(addedTimerRef.current);
       addedTimerRef.current = setTimeout(() => setAdded(false), 1000);
     },
-    [product, addItem, haptic, navigate],
+    [product, addItem, haptic, navigate, inCart],
   );
 
   const discountPercent = product.discount_percent || product.discount_percentage || 0;
@@ -156,16 +164,20 @@ export function ProductCard({ product }: ProductCardProps) {
 
           {product.in_stock !== false ? (
             <button
-              aria-label={added ? "Qo'shildi" : "Sotib olish"}
+              aria-label={inCart ? "Savatga o'tish" : added ? "Qo'shildi" : "Sotib olish"}
               className="w-full mt-2.5 h-8 text-[12px] font-semibold tracking-wide uppercase transition-all duration-150 active:scale-[0.98]"
               style={{
                 borderRadius: 'var(--storex-radius-sm)',
-                backgroundColor: added ? 'var(--storex-success)' : 'var(--storex-primary)',
+                backgroundColor: inCart
+                  ? 'var(--storex-success)'
+                  : added
+                    ? 'var(--storex-success)'
+                    : 'var(--storex-primary)',
                 color: '#fff',
               }}
-              onClick={handleAddToCart}
+              onClick={handleCartAction}
             >
-              {added ? '✓ Qo\'shildi' : 'Sotib olish'}
+              {inCart ? "Savatga o'tish" : added ? "✓ Qo'shildi" : 'Sotib olish'}
             </button>
           ) : (
             <span

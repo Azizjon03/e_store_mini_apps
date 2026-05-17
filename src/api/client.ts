@@ -1,18 +1,19 @@
 import axios from 'axios';
+import { useAuthStore } from '@/store/authStore';
 
 const apiClient = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL,
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
-    'Accept': 'application/json',
+    Accept: 'application/json',
   },
 });
 
 apiClient.interceptors.request.use((config) => {
-  const initData = window.Telegram?.WebApp?.initData;
-  if (initData) {
-    config.headers.Authorization = `tma ${initData}`;
+  const token = useAuthStore.getState().token;
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
 });
@@ -20,13 +21,15 @@ apiClient.interceptors.request.use((config) => {
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    const config = error.config;
-    if (error.response?.status === 401 && !config._retried) {
-      config._retried = true;
-      const initData = window.Telegram?.WebApp?.initData;
-      if (initData) {
-        config.headers.Authorization = `tma ${initData}`;
-        return apiClient.request(config);
+    if (error.response?.status === 401) {
+      const { token, logout } = useAuthStore.getState();
+      if (token) {
+        // Stale/expired token — drop it and bounce to login.
+        logout();
+        if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
+          const next = encodeURIComponent(window.location.pathname + window.location.search);
+          window.location.assign(`/login?next=${next}`);
+        }
       }
     }
     return Promise.reject(error);
