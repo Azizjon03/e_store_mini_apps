@@ -62,9 +62,9 @@ export const getSearchSuggestions = (query: string) =>
     .get<{ data: { suggestions: string[] } }>('/search/suggestions', { params: { q: query } })
     .then((r) => r.data.data.suggestions);
 
-// Cart (authenticated — tg/ prefix)
+// Cart (Sanctum auth)
 export const getCart = () =>
-  apiClient.get<{ data: Cart }>('/tg/cart').then((r) => r.data.data);
+  apiClient.get<{ data: Cart }>('/cart').then((r) => r.data.data);
 
 export const addToCart = (data: {
   product_id: string;
@@ -74,36 +74,39 @@ export const addToCart = (data: {
   name: string;
   thumbnail?: string;
   slug?: string;
-}) => apiClient.post('/tg/cart/add', data).then((r) => r.data);
+}) => apiClient.post('/cart/add', data).then((r) => r.data);
 
 export const updateCartItem = (data: {
   product_id: string;
   quantity: number;
   variant_name?: string;
-}) => apiClient.put('/tg/cart/update', data).then((r) => r.data);
+}) => apiClient.put('/cart/update', data).then((r) => r.data);
 
 export const removeCartItem = (data: {
   product_id: string;
   variant_name?: string;
-}) => apiClient.delete('/tg/cart/remove', { data }).then((r) => r.data);
+}) => apiClient.delete('/cart/remove', { data }).then((r) => r.data);
 
 export const applyPromoCode = (code: string, order_amount?: number) =>
   apiClient
-    .post<{ data: { promo: PromoCode } }>('/tg/cart/promo', { code, order_amount })
+    .post<{ data: { promo: PromoCode } }>('/cart/promo', { code, order_amount })
     .then((r) => r.data.data);
 
 export const removePromoCode = () =>
-  apiClient.delete('/tg/cart/promo').then((r) => r.data);
+  apiClient.delete('/cart/promo').then((r) => r.data);
 
-// Checkout (authenticated — tg/ prefix)
+export const clearCart = () =>
+  apiClient.delete('/cart/clear').then((r) => r.data);
+
+// Checkout (Sanctum auth)
 export const getDeliverySlots = () =>
   apiClient
-    .get<{ data: DeliverySlotResponse }>('/tg/checkout/delivery-slots')
+    .get<{ data: DeliverySlotResponse }>('/checkout/delivery-slots')
     .then((r) => r.data.data);
 
 export const getPaymentMethods = () =>
   apiClient
-    .get<{ data: { methods: PaymentMethodOption[] } }>('/tg/checkout/payment-methods')
+    .get<{ data: { methods: PaymentMethodOption[] } }>('/checkout/payment-methods')
     .then((r) => r.data.data.methods);
 
 export const checkout = (data: {
@@ -117,57 +120,57 @@ export const checkout = (data: {
   promo_code?: string;
 }) =>
   apiClient
-    .post<{ data: { order: Order; payment_url?: string } }>('/tg/checkout', data)
+    .post<{ data: { order: Order; payment_url?: string } }>('/checkout', data)
     .then((r) => r.data.data);
 
-// Orders (authenticated — tg/ prefix)
+// Orders (Sanctum auth)
 export const getOrders = (page = 1, status?: string) =>
   apiClient
-    .get<PaginatedResponse<Order>>('/tg/orders', { params: { page, status: status !== 'all' ? status : undefined } })
+    .get<PaginatedResponse<Order>>('/orders', { params: { page, status: status !== 'all' ? status : undefined } })
     .then((r) => r.data);
 
 export const getOrderDetail = (id: number) =>
   apiClient
-    .get<{ data: OrderDetail }>(`/tg/orders/${id}`)
+    .get<{ data: OrderDetail }>(`/orders/${id}`)
     .then((r) => r.data.data);
 
 export const reorderProducts = (orderId: number) =>
   apiClient
-    .post<{ data: Cart }>(`/tg/orders/${orderId}/reorder`)
+    .post<{ data: Cart }>(`/orders/${orderId}/reorder`)
     .then((r) => r.data.data);
 
-// Profile (authenticated — tg/ prefix)
+// Profile (Sanctum auth)
 export const getProfile = () =>
-  apiClient.get<{ data: Profile }>('/tg/profile').then((r) => r.data.data);
+  apiClient.get<{ data: Profile }>('/profile').then((r) => r.data.data);
 
-// Addresses (authenticated — tg/ prefix)
+// Addresses (Sanctum auth)
 export const getAddresses = () =>
-  apiClient.get<{ data: Address[] }>('/tg/addresses').then((r) => r.data.data);
+  apiClient.get<{ data: Address[] }>('/addresses').then((r) => r.data.data);
 
 export const createAddress = (
   data: Omit<Address, 'id' | 'user_id' | 'created_at'>,
 ) =>
   apiClient
-    .post<{ data: Address }>('/tg/addresses', data)
+    .post<{ data: Address }>('/addresses', data)
     .then((r) => r.data.data);
 
 export const updateAddress = (id: number, data: Partial<Address>) =>
   apiClient
-    .put<{ data: Address }>(`/tg/addresses/${id}`, data)
+    .put<{ data: Address }>(`/addresses/${id}`, data)
     .then((r) => r.data.data);
 
 export const deleteAddress = (id: number) =>
-  apiClient.delete(`/tg/addresses/${id}`);
+  apiClient.delete(`/addresses/${id}`);
 
 export const setPrimaryAddress = (id: number) =>
-  apiClient.put<{ data: Address }>(`/tg/addresses/${id}/primary`).then((r) => r.data.data);
+  apiClient.put<{ data: Address }>(`/addresses/${id}/primary`).then((r) => r.data.data);
 
-// Favorites (authenticated — tg/ prefix)
+// Favorites (Sanctum auth)
 export const getFavorites = () =>
-  apiClient.get<{ data: Product[] }>('/tg/favorites').then((r) => r.data.data);
+  apiClient.get<{ data: Product[] }>('/favorites').then((r) => r.data.data);
 
 export const addToFavorites = (productId: string) =>
-  apiClient.post(`/tg/favorites/${productId}`);
+  apiClient.post(`/favorites/${productId}`);
 
 export const removeFromFavorites = (productId: string) =>
-  apiClient.delete(`/tg/favorites/${productId}`);
+  apiClient.delete(`/favorites/${productId}`);

@@ -1,16 +1,29 @@
 import { create } from 'zustand';
-import type { User } from '@/api/types';
+import { persist } from 'zustand/middleware';
+import type { AuthUser } from '@/api/types';
 
 interface AuthState {
-  user: User | null;
+  user: AuthUser | null;
+  token: string | null;
   isAuthenticated: boolean;
-  setUser: (user: User) => void;
+  setSession: (user: AuthUser, token: string) => void;
+  setUser: (user: AuthUser) => void;
   logout: () => void;
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
-  user: null,
-  isAuthenticated: false,
-  setUser: (user) => set({ user, isAuthenticated: true }),
-  logout: () => set({ user: null, isAuthenticated: false }),
-}));
+export const useAuthStore = create<AuthState>()(
+  persist(
+    (set) => ({
+      user: null,
+      token: null,
+      isAuthenticated: false,
+      setSession: (user, token) => set({ user, token, isAuthenticated: true }),
+      setUser: (user) => set({ user }),
+      logout: () => set({ user: null, token: null, isAuthenticated: false }),
+    }),
+    {
+      name: 'storex-auth',
+      partialize: (state) => ({ user: state.user, token: state.token, isAuthenticated: state.isAuthenticated }),
+    },
+  ),
+);

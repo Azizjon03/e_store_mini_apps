@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
-import { initTelegram, getTelegramUser } from '@/lib/telegram';
+import { initTelegram } from '@/lib/telegram';
 import { useAuthStore } from '@/store/authStore';
 import { useAppStore } from '@/store/appStore';
 import { useBackButton } from '@/hooks/useBackButton';
 import { getStoreConfig } from '@/api/storefront';
+import { me } from '@/api/auth';
 
 function WelcomeScreen({ onEnter }: { onEnter: () => void }) {
   return (
@@ -67,7 +68,9 @@ function WelcomeScreen({ onEnter }: { onEnter: () => void }) {
 
 export function App() {
   const [entered, setEntered] = useState(false);
+  const token = useAuthStore((s) => s.token);
   const setUser = useAuthStore((s) => s.setUser);
+  const logout = useAuthStore((s) => s.logout);
   const setStoreConfig = useAppStore((s) => s.setStoreConfig);
   const setLoading = useAppStore((s) => s.setLoading);
 
@@ -75,24 +78,21 @@ export function App() {
     if (!entered) return;
 
     initTelegram();
-    const user = getTelegramUser();
-    if (user) {
-      setUser({
-        id: user.id,
-        first_name: user.first_name,
-        last_name: user.last_name,
-        username: user.username,
-        photo_url: user.photo_url,
-        language_code: user.language_code,
-        is_premium: user.is_premium,
-      });
-    }
 
     getStoreConfig()
       .then((config) => setStoreConfig(config))
       .catch(() => { /* store config is optional, app works without it */ })
       .finally(() => setLoading(false));
-  }, [entered, setUser, setStoreConfig, setLoading]);
+
+    // Refresh stored AuthUser from the server when we already hold a token.
+    if (token) {
+      me()
+        .then((user) => setUser(user))
+        .catch((err) => {
+          if (err?.response?.status === 401) logout();
+        });
+    }
+  }, [entered, token, setUser, logout, setStoreConfig, setLoading]);
 
   useBackButton();
 

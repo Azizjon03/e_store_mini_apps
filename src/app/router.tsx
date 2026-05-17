@@ -2,6 +2,7 @@ import { lazy } from 'react';
 import { createBrowserRouter } from 'react-router-dom';
 import { App } from './App';
 import { LazyPage } from '@/components/ui/LazyPage';
+import { ProtectedRoute } from '@/components/ProtectedRoute';
 
 const Home = lazy(() => import('@/pages/Home'));
 const Catalog = lazy(() => import('@/pages/Catalog'));
@@ -16,6 +17,8 @@ const Profile = lazy(() => import('@/pages/Profile'));
 const Addresses = lazy(() => import('@/pages/Addresses'));
 const AddressForm = lazy(() => import('@/pages/AddressForm'));
 const Favorites = lazy(() => import('@/pages/Favorites'));
+const Login = lazy(() => import('@/pages/Login'));
+const Register = lazy(() => import('@/pages/Register'));
 
 export const router = createBrowserRouter([
   {
@@ -28,15 +31,24 @@ export const router = createBrowserRouter([
       { path: 'product/:productSlug', element: <LazyPage><ProductDetail /></LazyPage> },
       { path: 'search', element: <LazyPage><Search /></LazyPage> },
       { path: 'cart', element: <LazyPage><Cart /></LazyPage> },
-      { path: 'checkout', element: <LazyPage><Checkout /></LazyPage> },
-      { path: 'order-success/:orderId', element: <LazyPage><OrderSuccess /></LazyPage> },
-      { path: 'orders', element: <LazyPage><Orders /></LazyPage> },
-      { path: 'orders/:orderId', element: <LazyPage><OrderDetailPage /></LazyPage> },
-      { path: 'profile', element: <LazyPage><Profile /></LazyPage> },
-      { path: 'profile/addresses', element: <LazyPage><Addresses /></LazyPage> },
-      { path: 'profile/addresses/new', element: <LazyPage><AddressForm /></LazyPage> },
-      { path: 'profile/addresses/:addressId', element: <LazyPage><AddressForm /></LazyPage> },
-      { path: 'favorites', element: <LazyPage><Favorites /></LazyPage> },
+      { path: 'login', element: <LazyPage><Login /></LazyPage> },
+      { path: 'register', element: <LazyPage><Register /></LazyPage> },
+
+      // Auth-required pages
+      {
+        element: <ProtectedRoute />,
+        children: [
+          { path: 'checkout', element: <LazyPage><Checkout /></LazyPage> },
+          { path: 'order-success/:orderId', element: <LazyPage><OrderSuccess /></LazyPage> },
+          { path: 'orders', element: <LazyPage><Orders /></LazyPage> },
+          { path: 'orders/:orderId', element: <LazyPage><OrderDetailPage /></LazyPage> },
+          { path: 'profile', element: <LazyPage><Profile /></LazyPage> },
+          { path: 'profile/addresses', element: <LazyPage><Addresses /></LazyPage> },
+          { path: 'profile/addresses/new', element: <LazyPage><AddressForm /></LazyPage> },
+          { path: 'profile/addresses/:addressId', element: <LazyPage><AddressForm /></LazyPage> },
+          { path: 'favorites', element: <LazyPage><Favorites /></LazyPage> },
+        ],
+      },
     ],
   },
 ]);

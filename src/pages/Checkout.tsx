@@ -1,8 +1,7 @@
 import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { getAddresses, checkout, getDeliverySlots, getPaymentMethods } from '@/api/storefront';
-import { useAppStore } from '@/store/appStore';
+import { getAddresses, checkout, getDeliverySlots, getPaymentMethods, addToCart, clearCart } from '@/api/storefront';
 import { useCartStore } from '@/store/cartStore';
 import { useBackButton } from '@/hooks/useBackButton';
 import { useHaptic } from '@/hooks/useHaptic';
@@ -27,8 +26,6 @@ export default function Checkout() {
   const deliveryCost = useCartStore((s) => s.deliveryCost);
   const setDeliveryCost = useCartStore((s) => s.setDeliveryCost);
   const clear = useCartStore((s) => s.clear);
-
-  const storeConfig = useAppStore((s) => s.storeConfig);
 
   const [userSelectedAddress, setUserSelectedAddress] = useState<number | null>(null);
   const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>('delivery');
@@ -80,18 +77,32 @@ export default function Checkout() {
         : 1
       : 1;
 
-  const configDeliveryCost = storeConfig?.delivery_info?.delivery_cost ?? 15000;
-
-  // Update delivery cost based on method
+  // Delivery cost is not configured yet; keep 0 for both methods.
   const handleDeliveryChange = (method: DeliveryMethod) => {
     setDeliveryMethod(method);
-    setDeliveryCost(method === 'delivery' ? configDeliveryCost : 0);
+    setDeliveryCost(0);
     haptic.selectionChanged();
   };
 
   const checkoutMutation = useMutation({
-    mutationFn: () => {
+    mutationFn: async () => {
       if (needsAddress && selectedAddress === null) throw new Error('No address selected');
+
+      // Sync local cart to server (cart is local-only on the client; backend reads
+      // its server-side cart in CheckoutController, so we push items first).
+      await clearCart().catch(() => {});
+      for (const item of items) {
+        await addToCart({
+          product_id: String(item.product_id),
+          quantity: item.quantity,
+          variant_name: item.variant?.name,
+          unit_price: item.price,
+          name: t(item.product.name),
+          thumbnail: item.product.thumbnail ?? item.product.image,
+          slug: item.product.slug,
+        });
+      }
+
       return checkout({
         address_id: needsAddress ? selectedAddress! : undefined,
         delivery_method: deliveryMethod,
@@ -184,7 +195,7 @@ export default function Checkout() {
               {
                 value: 'delivery' as const,
                 label: 'Kuryer orqali yetkazish',
-                desc: `1-2 kun, ${formatPrice(configDeliveryCost)}`,
+                desc: '1-2 kun',
                 icon: (
                   <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
                     <path d="M1 3h11v9H1z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />

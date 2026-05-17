@@ -1,5 +1,5 @@
-// User & Auth
-export interface User {
+// Telegram WebApp user payload (raw, from initDataUnsafe). Used for prefill only.
+export interface TelegramUser {
   id: number;
   first_name: string;
   last_name?: string;
@@ -7,6 +7,24 @@ export interface User {
   photo_url?: string;
   language_code?: string;
   is_premium?: boolean;
+}
+
+// Authenticated user returned by /storefront/auth/me (backend UserResource).
+export interface AuthUser {
+  id: number;
+  name: string;
+  email: string | null;
+  phone: string;
+  avatar: string | null;
+  telegram_id: string | null;
+  status: string;
+  two_factor_enabled: boolean;
+  created_at: string;
+}
+
+export interface AuthResponse {
+  data: AuthUser;
+  token: string;
 }
 
 // Categories
