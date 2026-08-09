@@ -1,31 +1,57 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getOrderDetail, reorderProducts } from '@/api/storefront';
+import { useQuery } from '@tanstack/react-query';
+import { getOrderDetail } from '@/api/storefront';
 import { formatPrice, formatDateTime, t } from '@/lib/format';
 import { useHaptic } from '@/hooks/useHaptic';
 import { useBackButton } from '@/hooks/useBackButton';
 import { showToast } from '@/lib/toast';
 import { Spinner } from '@/components/ui/Spinner';
-import type { OrderStatus } from '@/api/types';
+import { useCartStore, makeItemId } from '@/store/cartStore';
+import type { CartItem, Order, OrderStatus } from '@/api/types';
 import { isTelegramWebApp, WebApp } from '@/lib/telegram';
 
 const STATUS_CONFIG: Record<OrderStatus, { label: string; color: string }> = {
   pending: { label: 'Kutilmoqda', color: 'var(--storex-warning)' },
   confirmed: { label: 'Tasdiqlangan', color: 'var(--storex-info)' },
   processing: { label: 'Tayyorlanmoqda', color: 'var(--storex-info)' },
-  delivering: { label: 'Yetkazilmoqda', color: 'var(--storex-primary)' },
+  shipped: { label: 'Yetkazilmoqda', color: 'var(--storex-primary)' },
   delivered: { label: 'Yetkazildi', color: 'var(--storex-success)' },
   cancelled: { label: 'Bekor qilindi', color: 'var(--storex-danger)' },
-  returned: { label: 'Qaytarildi', color: 'var(--tg-theme-hint-color)' },
+  refunded: { label: 'Qaytarildi', color: 'var(--tg-theme-hint-color)' },
 };
 
-const STATUS_ORDER: OrderStatus[] = ['pending', 'confirmed', 'processing', 'delivering', 'delivered'];
+// Defensive fallback: the backend enum can grow without the frontend knowing,
+// so an unrecognized status must never crash the page (see getStatusConfig).
+const UNKNOWN_STATUS_CONFIG = { label: 'Nomaʼlum holat', color: 'var(--tg-theme-hint-color)' };
+
+function getStatusConfig(status: OrderStatus) {
+  return STATUS_CONFIG[status] ?? UNKNOWN_STATUS_CONFIG;
+}
+
+const STATUS_ORDER: OrderStatus[] = ['pending', 'confirmed', 'processing', 'shipped', 'delivered'];
+
+// Reorder is filled purely client-side from the order's own items — the
+// server's /orders/{id}/reorder cart gets wiped by checkout's clearCart()
+// sync anyway, so trusting that round-trip never actually worked. Historical
+// item.price is used (not live product price) since that's the only price
+// this stub data carries, and it faithfully reproduces what the order shows.
+function addOrderItemsToCart(order: Order) {
+  const newItems: CartItem[] = order.items.map((item) => ({
+    id: makeItemId(item.product_id, item.variant?.id),
+    product_id: item.product_id,
+    product: item.product,
+    quantity: item.quantity,
+    variant: item.variant,
+    price: item.price,
+  }));
+
+  useCartStore.getState().mergeItems(newItems);
+}
 
 export default function OrderDetail() {
   const { orderId } = useParams<{ orderId: string }>();
   const navigate = useNavigate();
   const haptic = useHaptic();
-  const queryClient = useQueryClient();
   useBackButton();
 
   const { data: order, isLoading } = useQuery({
@@ -34,19 +60,13 @@ export default function OrderDetail() {
     enabled: !!orderId,
   });
 
-  const reorderMutation = useMutation({
-    mutationFn: () => reorderProducts(Number(orderId)),
-    onSuccess: () => {
-      haptic.notification('success');
-      showToast('success', "Mahsulotlar savatga qo'shildi");
-      queryClient.invalidateQueries({ queryKey: ['cart'] });
-      navigate('/cart');
-    },
-    onError: () => {
-      showToast('error', 'Xatolik yuz berdi');
-      haptic.notification('error');
-    },
-  });
+  const handleReorder = () => {
+    if (!order) return;
+    addOrderItemsToCart(order);
+    haptic.notification('success');
+    showToast('success', "Mahsulotlar savatga qo'shildi");
+    navigate('/cart');
+  };
 
   if (isLoading) {
     return (
@@ -58,9 +78,9 @@ export default function OrderDetail() {
 
   if (!order) return null;
 
-  const currentStatus = STATUS_CONFIG[order.status];
+  const currentStatus = getStatusConfig(order.status);
   const currentStatusIndex = STATUS_ORDER.indexOf(order.status);
-  const isCancelled = order.status === 'cancelled' || order.status === 'returned';
+  const isCancelled = order.status === 'cancelled' || order.status === 'refunded';
 
   return (
     <div className="min-h-screen pb-8" style={{ backgroundColor: 'var(--tg-theme-secondary-bg-color)' }}>
@@ -96,7 +116,7 @@ export default function OrderDetail() {
                 const isCompleted = index <= currentStatusIndex;
                 const isCurrent = index === currentStatusIndex;
                 const isLast = index === STATUS_ORDER.length - 1;
-                const config = STATUS_CONFIG[status];
+                const config = getStatusConfig(status);
                 const trackEntry = order.tracking?.find((tr) => tr.status === status);
 
                 return (
@@ -151,8 +171,8 @@ export default function OrderDetail() {
       )}
 
       {/* Courier info card */}
-      {order.status === 'delivering' && order.tracking && (() => {
-        const deliveryTrack = order.tracking.find((tr) => tr.status === 'delivering');
+      {order.status === 'shipped' && order.tracking && (() => {
+        const deliveryTrack = order.tracking.find((tr) => tr.status === 'shipped');
         if (!deliveryTrack) return null;
         const driverName = deliveryTrack.driver?.name;
         const driverPhone = deliveryTrack.driver?.phone ?? deliveryTrack.driver_phone;
@@ -213,49 +233,55 @@ export default function OrderDetail() {
             Buyurtma tarkibi
           </p>
           <div className="flex flex-col gap-2">
-            {order.items.map((item) => (
-              <div
-                key={item.id}
-                className="storex-card press-effect flex gap-3 p-3 cursor-pointer"
-                onClick={() => navigate(`/product/${item.product.slug}`)}
-              >
+            {order.items.map((item) => {
+              // product_snapshot.slug is always null from the backend — a row
+              // without a real slug cannot link anywhere, so it must not look
+              // or behave like it can be tapped.
+              const hasProductLink = Boolean(item.product.slug);
+              return (
                 <div
-                  className="w-14 h-14 overflow-hidden shrink-0"
-                  style={{
-                    borderRadius: 'var(--storex-radius-sm)',
-                    backgroundColor: 'var(--tg-theme-secondary-bg-color)',
-                  }}
+                  key={item.id}
+                  className={`storex-card flex gap-3 p-3 ${hasProductLink ? 'press-effect cursor-pointer' : ''}`}
+                  onClick={hasProductLink ? () => navigate(`/product/${item.product.slug}`) : undefined}
                 >
-                  {item.product.image ? (
-                    <img src={item.product.image} alt="" className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <svg width="20" height="20" viewBox="0 0 20 20" fill="none" style={{ color: 'var(--tg-theme-hint-color)' }}>
-                        <rect x="2" y="2" width="16" height="16" rx="2" stroke="currentColor" strokeWidth="1.2" />
-                        <circle cx="7" cy="7.5" r="2" stroke="currentColor" strokeWidth="1" />
-                        <path d="M2 14l4-3.5 3.5 3L14 9l4 5v2a2 2 0 01-2 2H4a2 2 0 01-2-2v-2z" fill="currentColor" opacity="0.15" />
-                      </svg>
-                    </div>
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[13px] font-medium line-clamp-1" style={{ color: 'var(--tg-theme-text-color)' }}>
-                    {t(item.product.name)}
-                  </p>
-                  {item.variant && (
-                    <p className="text-[11px]" style={{ color: 'var(--tg-theme-hint-color)' }}>
-                      {item.variant.name}
+                  <div
+                    className="w-14 h-14 overflow-hidden shrink-0"
+                    style={{
+                      borderRadius: 'var(--storex-radius-sm)',
+                      backgroundColor: 'var(--tg-theme-secondary-bg-color)',
+                    }}
+                  >
+                    {item.product.image ? (
+                      <img src={item.product.image} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" style={{ color: 'var(--tg-theme-hint-color)' }}>
+                          <rect x="2" y="2" width="16" height="16" rx="2" stroke="currentColor" strokeWidth="1.2" />
+                          <circle cx="7" cy="7.5" r="2" stroke="currentColor" strokeWidth="1" />
+                          <path d="M2 14l4-3.5 3.5 3L14 9l4 5v2a2 2 0 01-2 2H4a2 2 0 01-2-2v-2z" fill="currentColor" opacity="0.15" />
+                        </svg>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[13px] font-medium line-clamp-1" style={{ color: 'var(--tg-theme-text-color)' }}>
+                      {t(item.product.name)}
                     </p>
-                  )}
-                  <p className="text-[11px] mt-1" style={{ color: 'var(--tg-theme-hint-color)' }}>
-                    {formatPrice(item.price)} x {item.quantity}
-                  </p>
+                    {item.variant && (
+                      <p className="text-[11px]" style={{ color: 'var(--tg-theme-hint-color)' }}>
+                        {item.variant.name}
+                      </p>
+                    )}
+                    <p className="text-[11px] mt-1" style={{ color: 'var(--tg-theme-hint-color)' }}>
+                      {formatPrice(item.price)} x {item.quantity}
+                    </p>
+                  </div>
+                  <span className="text-[13px] font-semibold self-center" style={{ color: 'var(--storex-primary)' }}>
+                    {formatPrice(item.price * item.quantity)}
+                  </span>
                 </div>
-                <span className="text-[13px] font-semibold self-center" style={{ color: 'var(--storex-primary)' }}>
-                  {formatPrice(item.price * item.quantity)}
-                </span>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </section>
@@ -348,10 +374,9 @@ export default function OrderDetail() {
             backgroundColor: 'var(--storex-primary)',
             color: '#fff',
           }}
-          onClick={() => reorderMutation.mutate()}
-          disabled={reorderMutation.isPending}
+          onClick={handleReorder}
         >
-          {reorderMutation.isPending ? '...' : 'Qayta buyurtma berish'}
+          Qayta buyurtma berish
         </button>
         <button
           className="w-full py-3 text-[15px] font-medium press-effect"

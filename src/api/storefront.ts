@@ -6,6 +6,7 @@ import type {
   ProductDetail,
   StoreConfig,
   Cart,
+  CartItem,
   PromoCode,
   Order,
   OrderDetail,
@@ -17,6 +18,19 @@ import type {
   PaymentMethodOption,
   Profile,
 } from './types';
+
+// GET /cart returns a flat object — items live under `data`, everything else
+// (total_price, delivery_cost, free_delivery_remaining, estimated_delivery) is a
+// sibling field, not nested under a `Cart`-shaped `data`. The backend does not send
+// `discount` or `promo_code` at all, so those stay unset rather than being invented.
+interface CartResponseRaw {
+  data: CartItem[];
+  total_price: number;
+  delivery_cost: number;
+  free_delivery_remaining?: number;
+  estimated_delivery?: string;
+  count?: number;
+}
 
 // Init (public)
 export const getStoreConfig = () =>
@@ -64,16 +78,24 @@ export const getSearchSuggestions = (query: string) =>
 
 // Cart (Sanctum auth)
 export const getCart = () =>
-  apiClient.get<{ data: Cart }>('/cart').then((r) => r.data.data);
+  apiClient.get<CartResponseRaw>('/cart').then((r): Cart => ({
+    items: r.data.data,
+    total_price: r.data.total_price,
+    delivery_cost: r.data.delivery_cost,
+    free_delivery_remaining: r.data.free_delivery_remaining,
+    estimated_delivery: r.data.estimated_delivery,
+  }));
 
+/**
+ * Price, name, thumbnail and slug are resolved server-side from the product.
+ * They used to be sent by the client, which meant the client could name its
+ * own price — a 1-som order for a 15M product was reproducible. The server
+ * now ignores them, so they are deliberately absent from this signature.
+ */
 export const addToCart = (data: {
   product_id: string;
   quantity: number;
   variant_name?: string;
-  unit_price: number;
-  name: string;
-  thumbnail?: string;
-  slug?: string;
 }) => apiClient.post('/cart/add', data).then((r) => r.data);
 
 export const updateCartItem = (data: {
@@ -114,7 +136,7 @@ export const checkout = (data: {
   shipping_address?: { full_address: string; lat?: number; lng?: number };
   delivery_method: 'delivery' | 'pickup';
   payment_method: string;
-  delivery_slot_id?: number;
+  delivery_slot_id?: string;
   pickup_point_id?: number;
   notes?: string;
   promo_code?: string;

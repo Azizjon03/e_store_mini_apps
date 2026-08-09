@@ -144,7 +144,7 @@ export default function ProductDetail() {
         <div className="absolute top-0 left-0 right-0 flex items-center justify-between p-3 z-10">
           <button
             className="w-9 h-9 rounded-full flex items-center justify-center"
-            style={{ backgroundColor: 'rgba(255,255,255,0.9)', boxShadow: 'var(--storex-shadow-sm)' }}
+            style={{ backgroundColor: 'color-mix(in srgb, var(--tg-theme-bg-color) 85%, transparent)', boxShadow: 'var(--storex-shadow-sm)' }}
             onClick={() => navigate(-1)}
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--tg-theme-text-color)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -155,7 +155,7 @@ export default function ProductDetail() {
           <div className="flex gap-2">
             <button
               className="w-9 h-9 rounded-full flex items-center justify-center"
-              style={{ backgroundColor: 'rgba(255,255,255,0.9)', boxShadow: 'var(--storex-shadow-sm)' }}
+              style={{ backgroundColor: 'color-mix(in srgb, var(--tg-theme-bg-color) 85%, transparent)', boxShadow: 'var(--storex-shadow-sm)' }}
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--tg-theme-text-color)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" />
@@ -164,7 +164,7 @@ export default function ProductDetail() {
             </button>
             <button
               className="w-9 h-9 rounded-full flex items-center justify-center"
-              style={{ backgroundColor: isFavorite ? 'var(--storex-price-sale)' : 'rgba(255,255,255,0.9)', boxShadow: 'var(--storex-shadow-sm)' }}
+              style={{ backgroundColor: isFavorite ? 'var(--storex-price-sale)' : 'color-mix(in srgb, var(--tg-theme-bg-color) 85%, transparent)', boxShadow: 'var(--storex-shadow-sm)' }}
               onClick={toggleFavorite}
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill={isFavorite ? '#fff' : 'none'} stroke={isFavorite ? '#fff' : 'var(--tg-theme-text-color)'} strokeWidth="2">
@@ -215,7 +215,7 @@ export default function ProductDetail() {
           <div className="flex items-center gap-1.5 mb-3">
             <div className="flex gap-0.5">
               {Array.from({ length: 5 }, (_, i) => (
-                <svg key={i} width="14" height="14" viewBox="0 0 12 12" fill={i < Math.round(product.rating ?? 0) ? '#f59e0b' : '#e5e7eb'}>
+                <svg key={i} width="14" height="14" viewBox="0 0 12 12" fill={i < Math.round(product.rating ?? 0) ? 'var(--storex-warning)' : 'var(--tg-theme-hint-color)'}>
                   <path d="M6 0l1.76 3.57 3.94.57-2.85 2.78.67 3.93L6 8.89 2.48 10.85l.67-3.93L.3 4.14l3.94-.57z" />
                 </svg>
               ))}
@@ -388,7 +388,7 @@ export default function ProductDetail() {
                     </div>
                     <div className="flex gap-0.5">
                       {Array.from({ length: 5 }, (_, i) => (
-                        <svg key={i} width="10" height="10" viewBox="0 0 12 12" fill={i < review.rating ? '#f59e0b' : '#e5e7eb'}>
+                        <svg key={i} width="10" height="10" viewBox="0 0 12 12" fill={i < review.rating ? 'var(--storex-warning)' : 'var(--tg-theme-hint-color)'}>
                           <path d="M6 0l1.76 3.57 3.94.57-2.85 2.78.67 3.93L6 8.89 2.48 10.85l.67-3.93L.3 4.14l3.94-.57z" />
                         </svg>
                       ))}
@@ -498,10 +498,10 @@ export default function ProductDetail() {
               borderRadius: 'var(--storex-radius-md)',
               color: '#fff',
             }}
-            disabled={!product.in_stock || (variantTypes.length > 0 && !allVariantsSelected)}
+            disabled={product.in_stock === false || (variantTypes.length > 0 && !allVariantsSelected)}
             onClick={handleAddToCart}
           >
-            {!product.in_stock ? (
+            {product.in_stock === false ? (
               'Hozirda mavjud emas'
             ) : variantTypes.length > 0 && !allVariantsSelected ? (
               'Variantni tanlang'

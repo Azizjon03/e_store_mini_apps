@@ -1,8 +1,9 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { getAddresses, checkout, getDeliverySlots, getPaymentMethods, addToCart, clearCart } from '@/api/storefront';
 import { useCartStore } from '@/store/cartStore';
+import { useAppStore } from '@/store/appStore';
 import { useBackButton } from '@/hooks/useBackButton';
 import { useHaptic } from '@/hooks/useHaptic';
 import { formatPrice, t } from '@/lib/format';
@@ -26,11 +27,12 @@ export default function Checkout() {
   const deliveryCost = useCartStore((s) => s.deliveryCost);
   const setDeliveryCost = useCartStore((s) => s.setDeliveryCost);
   const clear = useCartStore((s) => s.clear);
+  const storeConfig = useAppStore((s) => s.storeConfig);
 
   const [userSelectedAddress, setUserSelectedAddress] = useState<number | null>(null);
   const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>('delivery');
   const [paymentMethod, setPaymentMethod] = useState<string>('click');
-  const [selectedSlotId, setSelectedSlotId] = useState<number | null>(null);
+  const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null);
   const [notes, setNotes] = useState('');
   const [showItems, setShowItems] = useState(false);
 
@@ -77,36 +79,83 @@ export default function Checkout() {
         : 1
       : 1;
 
-  // Delivery cost is not configured yet; keep 0 for both methods.
+  // The server recomputes the delivery fee from the same company settings when
+  // it creates the order, so mirroring that formula here is what keeps the
+  // total the shopper approves equal to the total they are charged. Hardcoding
+  // 0 (the previous behaviour) silently under-quoted every order the moment a
+  // store configured a real fee.
+  const deliveryFeeFor = useCallback(
+    (method: DeliveryMethod) => {
+      if (method === 'pickup') return 0;
+      const info = storeConfig?.delivery_info;
+      if (!info) return 0;
+      const freeFrom = info.free_delivery_from ?? 0;
+      if (freeFrom > 0 && subtotal() >= freeFrom) return 0;
+      return info.delivery_cost ?? 0;
+    },
+    [storeConfig, subtotal],
+  );
+
   const handleDeliveryChange = (method: DeliveryMethod) => {
     setDeliveryMethod(method);
-    setDeliveryCost(0);
+    setDeliveryCost(deliveryFeeFor(method));
     haptic.selectionChanged();
   };
+
+  // Keep the fee in sync when the config arrives or the basket total crosses
+  // the free-delivery threshold — not just when the method is tapped.
+  useEffect(() => {
+    setDeliveryCost(deliveryFeeFor(deliveryMethod));
+  }, [deliveryFeeFor, deliveryMethod, setDeliveryCost]);
+
+
+  // `paymentMethod` starts as a guess made before the store's methods are
+  // known. The server validates against the very list this endpoint returns,
+  // so a selection that isn't on it can only ever fail — resolve to a real one
+  // rather than storing the correction, which would fight the user's own taps.
+  const availableMethods = (paymentMethods ?? []).filter((m) => m.available);
+  const effectivePaymentMethod =
+    availableMethods.some((m) => m.id === paymentMethod)
+      ? paymentMethod
+      : (availableMethods[0]?.id ?? paymentMethod);
 
   const checkoutMutation = useMutation({
     mutationFn: async () => {
       if (needsAddress && selectedAddress === null) throw new Error('No address selected');
 
-      // Sync local cart to server (cart is local-only on the client; backend reads
-      // its server-side cart in CheckoutController, so we push items first).
-      await clearCart().catch(() => {});
-      for (const item of items) {
-        await addToCart({
-          product_id: String(item.product_id),
-          quantity: item.quantity,
-          variant_name: item.variant?.name,
-          unit_price: item.price,
-          name: t(item.product.name),
-          thumbnail: item.product.thumbnail ?? item.product.image,
-          slug: item.product.slug,
-        });
+      // The cart is local-only while browsing; the backend reads its own
+      // server-side cart at checkout, so we push the items first.
+      //
+      // clearCart's failure is NOT swallowed: CartService::add increments an
+      // existing line rather than replacing it, so a failed clear followed by
+      // a successful re-add would silently double every quantity — and charge
+      // for it. Better to fail loudly before any money is involved.
+      await clearCart();
+
+      // Sent in parallel rather than serially: each request carries its own
+      // 10s timeout, and a serial loop over a large cart is long enough for
+      // Telegram to background the WebView mid-sync.
+      try {
+        await Promise.all(
+          items.map((item) =>
+            addToCart({
+              product_id: String(item.product_id),
+              quantity: item.quantity,
+              variant_name: item.variant?.name,
+            }),
+          ),
+        );
+      } catch (err) {
+        // A partial server cart would otherwise sit in cache for 7 days and
+        // poison the next checkout. Leave nothing behind.
+        await clearCart().catch(() => {});
+        throw err;
       }
 
       return checkout({
         address_id: needsAddress ? selectedAddress! : undefined,
         delivery_method: deliveryMethod,
-        payment_method: paymentMethod,
+        payment_method: effectivePaymentMethod,
         delivery_slot_id: needsAddress ? (selectedSlotId ?? undefined) : undefined,
         notes: notes || undefined,
         promo_code: promoCode ?? undefined,
@@ -115,7 +164,7 @@ export default function Checkout() {
     onSuccess: (data) => {
       haptic.impact('heavy');
       clear();
-      if (data.payment_url && paymentMethod !== 'cash') {
+      if (data.payment_url && effectivePaymentMethod !== 'cash') {
         if (isTelegramWebApp) {
           WebApp.openLink(data.payment_url);
         } else {
@@ -124,8 +173,15 @@ export default function Checkout() {
       }
       navigate(`/order-success/${data.order.id}`);
     },
-    onError: () => {
-      showToast('error', "Xatolik yuz berdi. Qayta urinib ko'ring.");
+    onError: (err: unknown) => {
+      // The server rejects a checkout whose cached price no longer matches the
+      // product (422) and re-syncs the cart to the current price. Swallowing
+      // that behind a generic toast would leave the shopper retrying blindly,
+      // so surface what the server actually said.
+      const message =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
+        "Xatolik yuz berdi. Qayta urinib ko'ring.";
+      showToast('error', message);
       haptic.notification('error');
     },
   });
@@ -395,8 +451,8 @@ export default function Checkout() {
             To'lov usuli
           </p>
           <div className="flex flex-col gap-2">
-            {(paymentMethods ?? []).filter((m) => m.available).map((method) => {
-              const isSelected = paymentMethod === method.id;
+            {availableMethods.map((method) => {
+              const isSelected = effectivePaymentMethod === method.id;
               return (
                 <button
                   key={method.id}

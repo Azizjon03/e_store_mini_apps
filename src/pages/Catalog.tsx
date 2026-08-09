@@ -172,7 +172,7 @@ export default function Catalog() {
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
           </svg>
-          Filter
+          Filtr
           {activeFilterCount > 0 && (
             <span className="text-[10px] font-bold">({activeFilterCount})</span>
           )}
@@ -190,7 +190,7 @@ export default function Catalog() {
         <EmptyState
           icon="📦"
           title="Mahsulotlar topilmadi"
-          description="Boshqa filter yoki kategoriya tanlang"
+          description="Boshqa filtr yoki kategoriya tanlang"
           action={{
             label: 'Filtrlarni tozalash',
             onClick: () => {

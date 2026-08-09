@@ -32,16 +32,20 @@
   --storex-price-sale: #ef4444;
   --storex-skeleton: var(--tg-theme-secondary-bg-color);
 
-  /* Borders */
-  --storex-border: rgba(0, 0, 0, 0.08);
+  /* Borders — mixed toward the theme's own text color instead of a fixed
+     black alpha, so the line stays visible whether the Telegram theme is
+     light (text is dark → dark line) or dark (text is light → light line). */
+  --storex-border: color-mix(in srgb, var(--tg-theme-text-color) 12%, transparent);
   --storex-border-active: var(--storex-primary);
-  --storex-border-card: 1px solid rgba(0, 0, 0, 0.06);
+  --storex-border-card: 1px solid color-mix(in srgb, var(--tg-theme-text-color) 10%, transparent);
 
-  /* Elevation / shadows */
-  --storex-shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
-  --storex-shadow-md: 0 2px 8px rgba(0,0,0,0.08);
-  --storex-shadow-lg: 0 4px 16px rgba(0,0,0,0.12);
-  --storex-shadow-card: 0 1px 3px rgba(0,0,0,0.06), 0 0 0 1px rgba(0,0,0,0.04);
+  /* Elevation / shadows — same text-color-mix technique. A literal black
+     shadow disappears on a dark ground; mixing toward text-color keeps a
+     faint but present halo in either theme. */
+  --storex-shadow-sm: 0 1px 2px color-mix(in srgb, var(--tg-theme-text-color) 5%, transparent);
+  --storex-shadow-md: 0 2px 8px color-mix(in srgb, var(--tg-theme-text-color) 10%, transparent);
+  --storex-shadow-lg: 0 4px 16px color-mix(in srgb, var(--tg-theme-text-color) 14%, transparent);
+  --storex-shadow-card: 0 1px 3px color-mix(in srgb, var(--tg-theme-text-color) 7%, transparent), 0 0 0 1px color-mix(in srgb, var(--tg-theme-text-color) 5%, transparent);
 
   /* Radius scale */
   --storex-radius-xs: 6px;
@@ -64,20 +68,27 @@
   --storex-page-padding: 16px;
   --storex-tabbar-height: 56px;
 
-  /* Stitch design system tokens (Material 3-style neutrals) */
-  --stitch-surface: #f8f9fa;
-  --stitch-surface-container-lowest: #ffffff;
-  --stitch-surface-container-low: #f3f4f5;
-  --stitch-surface-container: #edeeef;
-  --stitch-surface-container-high: #e7e8e9;
-  --stitch-surface-container-highest: #e1e3e4;
-  --stitch-on-surface: #191c1d;
-  --stitch-on-surface-variant: #404752;
-  --stitch-outline: #707883;
-  --stitch-outline-variant: #bfc7d4;
-  --stitch-primary: #0061a4;
-  --stitch-secondary: #416084;
-  --stitch-error: #ba1a1a;
+  /* Stitch design tokens (Material 3-style neutrals) — rebased onto the
+     Telegram theme vars + storex tokens instead of fixed light hex, so any
+     screen still built on --stitch-* (currently Profile.tsx) inherits dark
+     mode automatically. Two systems, one source of truth.
+     Surface tiers step away from the page ground *toward the theme's own
+     text color* (same technique as --storex-border below) — that direction
+     is always "more visible" whichever theme supplies the colors, because
+     text-color is guaranteed to contrast with bg-color. */
+  --stitch-surface: var(--tg-theme-secondary-bg-color);
+  --stitch-surface-container-lowest: var(--tg-theme-bg-color);
+  --stitch-surface-container-low: color-mix(in srgb, var(--tg-theme-bg-color) 96%, var(--tg-theme-text-color));
+  --stitch-surface-container: var(--tg-theme-secondary-bg-color);
+  --stitch-surface-container-high: color-mix(in srgb, var(--tg-theme-secondary-bg-color) 85%, var(--tg-theme-text-color));
+  --stitch-surface-container-highest: color-mix(in srgb, var(--tg-theme-secondary-bg-color) 72%, var(--tg-theme-text-color));
+  --stitch-on-surface: var(--tg-theme-text-color);
+  --stitch-on-surface-variant: var(--tg-theme-hint-color);
+  --stitch-outline: var(--tg-theme-hint-color);
+  --stitch-outline-variant: color-mix(in srgb, var(--tg-theme-hint-color) 40%, transparent);
+  --stitch-primary: var(--storex-primary);
+  --stitch-secondary: var(--storex-info);
+  --stitch-error: var(--storex-danger);
 }
 
 /* Material Symbols Outlined — icon font used on Profile page */
@@ -263,9 +274,12 @@ img {
   background-clip: text;
 }
 
-/* StoreX card style */
+/* StoreX card style — background is nudged a few % toward the theme's text
+   color, not left as a plain copy of the page's own --tg-theme-bg-color.
+   That's what gives the card a tonal plane distinct from the page in either
+   theme; the (now text-color-mixed) border and shadow reinforce the edge. */
 .storex-card {
-  background-color: var(--tg-theme-bg-color);
+  background-color: color-mix(in srgb, var(--tg-theme-bg-color) 97%, var(--tg-theme-text-color));
   border-radius: var(--storex-radius-md);
   border: var(--storex-border-card);
   box-shadow: var(--storex-shadow-sm);
@@ -328,9 +342,10 @@ img {
   background-color: var(--tg-theme-secondary-bg-color);
 }
 
-/* Card surface (white + subtle border + soft shadow) */
+/* Card surface (white + subtle border + soft shadow) — same tonal-shift
+   rationale as .storex-card above. */
 .storex-surface {
-  background-color: var(--tg-theme-bg-color);
+  background-color: color-mix(in srgb, var(--tg-theme-bg-color) 97%, var(--tg-theme-text-color));
   border-radius: var(--storex-radius-md);
   border: var(--storex-border-card);
   box-shadow: var(--storex-shadow-sm);

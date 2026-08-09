@@ -99,12 +99,12 @@ export default function Cart() {
               }}
             >
               <div
-                className="w-18 h-18 shrink-0 overflow-hidden cursor-pointer"
+                className={`w-18 h-18 shrink-0 overflow-hidden ${item.product.slug ? 'cursor-pointer' : ''}`}
                 style={{
                   backgroundColor: 'var(--tg-theme-secondary-bg-color)',
                   borderRadius: 'var(--storex-radius-sm)',
                 }}
-                onClick={() => navigate(`/product/${item.product.slug}`)}
+                onClick={item.product.slug ? () => navigate(`/product/${item.product.slug}`) : undefined}
               >
                 {item.product.image ? (
                   <img src={item.product.image} alt={t(item.product.name)} className="w-full h-full object-cover" />
@@ -119,9 +119,9 @@ export default function Cart() {
 
               <div className="flex-1 min-w-0 flex flex-col">
                 <p
-                  className="text-[13px] font-medium line-clamp-2 cursor-pointer leading-tight"
+                  className={`text-[13px] font-medium line-clamp-2 leading-tight ${item.product.slug ? 'cursor-pointer' : ''}`}
                   style={{ color: 'var(--tg-theme-text-color)' }}
-                  onClick={() => navigate(`/product/${item.product.slug}`)}
+                  onClick={item.product.slug ? () => navigate(`/product/${item.product.slug}`) : undefined}
                 >
                   {t(item.product.name)}
                 </p>

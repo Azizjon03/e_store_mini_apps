@@ -9,6 +9,8 @@ interface CartState {
   deliveryCost: number;
 
   addItem: (product: Product, quantity: number, variant?: ProductVariant) => void;
+  /** Merge pre-built lines (reorder) into the cart, summing quantity on lines that already exist. */
+  mergeItems: (items: CartItem[]) => void;
   updateQuantity: (itemId: string, quantity: number) => void;
   removeItem: (itemId: string) => void;
   clear: () => void;
@@ -21,7 +23,14 @@ interface CartState {
   total: () => number;
 }
 
-function makeItemId(productId: number, variantId?: number) {
+/**
+ * Cart line identity. Reorder builds lines outside the store, so this is exported —
+ * an id computed any other way silently fails to merge with an added line.
+ * Note the storefront currently returns variants without an `id`, so a variant
+ * without one collapses onto the product-level line rather than producing
+ * `"<productId>:undefined"`.
+ */
+export function makeItemId(productId: number, variantId?: number) {
   return variantId ? `${productId}:${variantId}` : `${productId}`;
 }
 
@@ -53,6 +62,19 @@ export const useCartStore = create<CartState>()(
             ],
           });
         }
+      },
+
+      mergeItems: (incoming) => {
+        const items = [...get().items];
+        for (const line of incoming) {
+          const index = items.findIndex((i) => i.id === line.id);
+          if (index >= 0) {
+            items[index] = { ...items[index], quantity: items[index].quantity + line.quantity };
+          } else {
+            items.push(line);
+          }
+        }
+        set({ items });
       },
 
       updateQuantity: (itemId, quantity) => {

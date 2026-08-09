@@ -16,8 +16,8 @@ export function Badge({ count, className }: BadgeProps) {
         className,
       )}
       style={{
-        backgroundColor: 'var(--store-badge-bg)',
-        color: 'var(--store-badge-text)',
+        backgroundColor: 'var(--storex-badge-bg)',
+        color: 'var(--storex-badge-text)',
       }}
     >
       {count > 99 ? '99+' : count}

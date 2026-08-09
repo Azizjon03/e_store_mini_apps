@@ -92,10 +92,14 @@ export interface ProductDetail extends Product {
 }
 
 // Cart
+// A cart line's `product` is either a full catalog Product (normal add-to-cart
+// flow) or a lightweight OrderProductSnapshot (reorder flow, built from an
+// order's own items — see OrderItem below). Only fields both shapes share
+// (name/image/thumbnail/slug) may be relied on when rendering a CartItem.
 export interface CartItem {
   id: string;
   product_id: number;
-  product: Product;
+  product: Product | OrderProductSnapshot;
   quantity: number;
   variant?: ProductVariant;
   price: number;
@@ -124,15 +128,28 @@ export type OrderStatus =
   | 'pending'
   | 'confirmed'
   | 'processing'
-  | 'delivering'
+  | 'shipped'
   | 'delivered'
   | 'cancelled'
-  | 'returned';
+  | 'refunded';
+
+// The backend attaches only a lightweight snapshot of the product to an order
+// item, not a full Product — id/price/category_id are never present. `slug`
+// is currently always sent as null (typed optional, since every existing
+// consumer already treats a missing slug as "no link" via truthiness/`??`
+// checks — null and undefined behave identically there), so any product
+// link built from this must be guarded.
+export interface OrderProductSnapshot {
+  name: LocalizedString;
+  image?: string;
+  thumbnail?: string | null;
+  slug?: string;
+}
 
 export interface OrderItem {
   id: number;
   product_id: number;
-  product: Product;
+  product: OrderProductSnapshot;
   quantity: number;
   variant?: ProductVariant;
   price: number;
@@ -290,7 +307,13 @@ export interface PaginatedResponse<T> {
 
 // Delivery slots
 export interface DeliverySlot {
-  id: number;
+  /**
+   * Self-describing composite id, e.g. "2026-08-10_09:00-11:00".
+   * Deliberately a string, not a number: the old positional ids were
+   * regenerated per request, so a stored id meant a different window the
+   * next day. The date is encoded so a persisted slot stays unambiguous.
+   */
+  id: string;
   time: string;
   available: boolean;
 }
