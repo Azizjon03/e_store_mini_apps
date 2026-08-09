@@ -1,9 +1,31 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, type NavigateFunction } from 'react-router-dom';
 import type { Banner } from '@/api/types';
+import { isTelegramWebApp, WebApp } from '@/lib/telegram';
 
 interface HeroBannerProps {
   banners: Banner[];
+}
+
+/**
+ * `link_url` is admin free-text — either an absolute URL or an internal app
+ * path — so sniff which it is and route accordingly. Reuses the
+ * WebApp.openLink + window.open fallback pattern from Checkout.tsx (guarded
+ * by isTelegramWebApp) rather than inventing a new one. HomeSections.tsx
+ * has its own copy of this for the mid-page banner (not imported, to avoid
+ * a non-component export tripping react-refresh/only-export-components).
+ */
+function openBannerLink(linkUrl: string | undefined, navigate: NavigateFunction) {
+  if (!linkUrl) return;
+  if (/^https?:\/\//i.test(linkUrl)) {
+    if (isTelegramWebApp) {
+      WebApp.openLink(linkUrl);
+    } else {
+      window.open(linkUrl, '_blank');
+    }
+  } else {
+    navigate(linkUrl.startsWith('/') ? linkUrl : `/${linkUrl}`);
+  }
 }
 
 export function HeroBanner({ banners }: HeroBannerProps) {
@@ -40,11 +62,7 @@ export function HeroBanner({ banners }: HeroBannerProps) {
   };
 
   const handleClick = (banner: Banner) => {
-    if (banner.link_type === 'product' && banner.link_value) {
-      navigate(`/product/${banner.link_value}`);
-    } else if (banner.link_type === 'category' && banner.link_value) {
-      navigate(`/catalog/${banner.link_value}`);
-    }
+    openBannerLink(banner.link_url, navigate);
   };
 
   if (banners.length === 0) return null;

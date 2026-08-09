@@ -1,10 +1,27 @@
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, type NavigateFunction } from 'react-router-dom';
 import type { HomeSection, Banner } from '@/api/types';
 import { ProductSection } from '@/components/product/ProductSection';
+import { isTelegramWebApp, WebApp } from '@/lib/telegram';
 
 interface HomeSectionsProps {
   sections: HomeSection[];
   bannersMid?: Banner[];
+}
+
+// Same admin-free-text sniff HeroBanner.tsx uses for its own tap handler.
+// Duplicated (not imported) rather than exported cross-file — see the note
+// in Home.tsx for why no shared-utils file was added.
+function openBannerLink(linkUrl: string | undefined, navigate: NavigateFunction) {
+  if (!linkUrl) return;
+  if (/^https?:\/\//i.test(linkUrl)) {
+    if (isTelegramWebApp) {
+      WebApp.openLink(linkUrl);
+    } else {
+      window.open(linkUrl, '_blank');
+    }
+  } else {
+    navigate(linkUrl.startsWith('/') ? linkUrl : `/${linkUrl}`);
+  }
 }
 
 function getSectionLink(section: HomeSection): string | undefined {
@@ -43,11 +60,7 @@ export function HomeSections({ sections, bannersMid }: HomeSectionsProps) {
                 borderRadius: 'var(--storex-radius-lg)',
                 height: 100,
               }}
-              onClick={() => {
-                const b = bannersMid[0];
-                if (b.link_type === 'product' && b.link_value) navigate(`/product/${b.link_value}`);
-                else if (b.link_type === 'category' && b.link_value) navigate(`/catalog/${b.link_value}`);
-              }}
+              onClick={() => openBannerLink(bannersMid[0].link_url, navigate)}
             >
               <img
                 src={bannersMid[0].image}

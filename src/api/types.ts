@@ -215,8 +215,15 @@ export interface Banner {
   title: string;
   image: string;
   placement: 'home_hero' | 'home_mid' | 'product_detail';
-  link_type: 'product' | 'category' | 'url' | 'none';
+  // `link_type`/`link_value` are declared by an older contract but the backend
+  // never populates them (no matching columns exist) — every consumer must use
+  // `link_url` instead. Kept here in case a future backend revival repopulates
+  // them; nothing in the app currently reads them.
+  link_type?: 'product' | 'category' | 'url' | 'none';
   link_value?: string;
+  // Admin free-text: either an absolute URL or an internal app path. The
+  // banner tap handler sniffs which and routes accordingly.
+  link_url?: string;
 }
 
 // Home page
