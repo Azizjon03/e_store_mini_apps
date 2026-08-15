@@ -1,10 +1,10 @@
 # StoreX — Tuzatish va Redizayn Rejasi
 
-**Sana:** 2026-08-09 · **Holat:** 1–4-bosqichlar bajarildi, deploy qilinmadi
+**Sana:** 2026-08-09 · **Holat:** 1–4-bosqichlar bajarildi, PR ochildi, deploy qilinmadi
 
 ---
 
-## Bajarilish holati (2026-08-10)
+## Bajarilish holati (2026-08-16)
 
 | Bosqich | Holat | Branch |
 |---|---|---|
@@ -12,19 +12,42 @@
 | 2 — Backend yaxlitligi | ✅ Bajarildi | `fix/storefront-integrity` (backend) |
 | 3 — Pul aniqligi | ✅ Bajarildi | frontend branchida |
 | 4 — Dizayn tizimi | ✅ Bajarildi (ko'z bilan tekshirilmagan) | frontend branchida |
-| 5 — Redizayn | ⏸ Boshlanmadi — sizning tanlovingizni kutadi | — |
+| 5 — Redizayn | 🔸 5 ekrandan 1 tasi (Home) | frontend branchida |
 
-**Tekshiruv:** frontend `lint` + `build` toza · backend `php artisan test` → **534 test o'tdi** (ketma-ket, mustaqil ishga tushirishda) · uchidan-uchiga kontrakt testi lokal API'da o'tdi.
+**Tekshiruv:** frontend `lint` + `build` toza · backend `php artisan test` → **583 test o'tdi, 1976 assertion** (bitta jarayonda, ketma-ket) · uchidan-uchiga kontrakt testi lokal API'da o'tdi.
 
-**Deploy qilinmadi.** Ikkala branch ham lokal, commit qilinmagan. `main` ga push avtomatik prodakshnga chiqaradi.
+**PR ochildi, merge qilinmadi:** frontend [#3](https://github.com/Azizjon03/e_store_mini_apps/pull/3) · backend [#26](https://github.com/Azizjon03/e_store_back/pull/26). Backend avval merge qilinishi kerak — frontend tuzatishlarining bir qismi shu branch qo'shgan maydonlarni o'qiydi. `main` ga merge avtomatik prodakshnga chiqaradi.
 
 ### Yopilgan bandlar
 
-P0-1 · P0-2 · P0-3 · P0-4 · P0-5 · P0-6 · P0-7 · P1-1 · P1-2 · P1-3 · P1-4 · P1-6 · P2-1 · P2-2 · P2-3 · P2-5 · P2-8 · P2-10 · P3-6 · R-1 · R-2
+Barcha P0 · P1-1..P1-6 · P2-1..P2-10 · P3-1, P3-2, P3-4, P3-6, P3-7 · R-1, R-2, R-3
 
-### Ochiq qolgan
+### Qisman yopilgan — qaror talab qiladi
 
-P1-5 (pickup point UI) · P2-4 (brend/atribut filtrlari) · P2-6 (banner link) · P2-7 (komponent dubllari) · P2-9 (ishlash) · P3-1..P3-5, P3-7, P3-8 · R-3 (variant `id`/`extra_price` — backend `ProductResource` ga qo'shilishi kerak)
+| Band | Nima qilindi | Nima ochiq |
+|---|---|---|
+| P3-3 | Token 24 soatdan 30 kunga uzaytirildi | Refresh mexanizmi qurilmadi — 30 kundan keyin baribir jimgina logout |
+| P3-5 | `X-Company-Id` / `?company_id` orqali begona tenantga kirish 403 bilan yopildi | `trustProxies(at: '*')` tufayli `X-Forwarded-Host` hujumchi qo'lida — **o'sha bypass domen orqali ochiq**. Yo trusted proxy'ni nginx IP'siga toraytirish, yo tekshiruvni faqat shaxsiy endpointlarga qo'llash kerak |
+| P3-8 | Savatga alohida Redis connection berildi — `cache:clear` endi tegmaydi | Savat hali ham faqat Redis'da, 7 kun TTL. Bazaga ko'chirish — alohida arxitektura qarori |
+
+### Ish davomida topilgan yangi nuqsonlar
+
+| Nuqson | Holat |
+|---|---|
+| Variantli mahsulotni PDP'dan sotib bo'lmasdi — UI mavjud bo'lmagan `type`/`value` maydonlariga qurilgan edi | ✅ Tuzatildi |
+| `makeItemId` da `0` yolg'onligi — har mahsulotning birinchi varianti asosiy narxda hisoblanardi | ✅ Tuzatildi |
+| `product.rating` o'lik — API `reviews_avg_rating` yuboradi | ✅ Tuzatildi |
+| Home `withAggregates()` ni chetlab o'tardi — `in_stock` doim `true` | ✅ Tuzatildi |
+| `POST /cart/promo` promo kodni hech qayerga yozmasdi | ✅ Tuzatildi |
+| ProductCard sevimlilar tugmasi 28px — 48px tap-target minimumidan past | ⏸ Dizayn qarori |
+| Variant `id` — massiv indeksi, mahsulot tahrirlansa siljiydi | ⏸ Checkout `name` bo'yicha hal qilgani uchun narx xavfi yo'q |
+| `ManagerAuthService` va admin `UserController` telefonni `AuthService` orqali o'tkazmaydi | ⏸ Ochiq |
+
+### Hali qilinmagan
+
+- **Qurilmada ko'z bilan tekshirish** — hech qachon qilinmadi. Lokal API `X-Company-Id` header talab qiladi, frontend uni yubormaydi.
+- **5-bosqich: qolgan 4 ekran redizayni** — ProductDetail → Cart → Checkout → Catalog.
+- **`DESIGN_STANDARD.md` §6 ziddiyati** — standart 56px dumaloq kategoriya ikonkasini belgilaydi, kod 48px squircle. Uchinchi qiymat kiritmaslik uchun ataylab tegilmadi.
 
 ---
 
