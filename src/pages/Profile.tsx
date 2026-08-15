@@ -380,7 +380,7 @@ function Toggle({ on, onChange }: { on: boolean; onChange: () => void }) {
         style={{
           left: on ? 22 : 2,
           backgroundColor: 'var(--tg-theme-button-text-color)',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+          boxShadow: 'var(--storex-shadow-md)',
           border: on ? 'none' : '1px solid var(--stitch-outline-variant)',
         }}
       />

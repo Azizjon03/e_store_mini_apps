@@ -8,6 +8,7 @@ import { BottomSheet } from '@/components/ui/BottomSheet';
 import { Chip } from '@/components/ui/Chip';
 import {
   RATING_OPTIONS,
+  getFilterableAttributeGroups,
   toProductFilterParams,
   type CatalogFilterValues,
 } from '@/lib/catalogFilters';
@@ -96,6 +97,14 @@ function FilterSheetBody({
     placeholderData: keepPreviousData,
   });
   const previewTotal = preview?.meta.total;
+
+  // Only groups that can actually narrow the result set (more than one
+  // value), most-discriminating first, capped — see the rule documented on
+  // getFilterableAttributeGroups itself.
+  const filterableAttributeGroups = useMemo(
+    () => getFilterableAttributeGroups(filterOptions?.attributes),
+    [filterOptions?.attributes],
+  );
 
   const toggleBrand = (id: number) => {
     haptic.selectionChanged();
@@ -224,8 +233,10 @@ function FilterSheetBody({
           </div>
         )}
 
-        {/* Attributes — one group per entry, values OR'd within a group */}
-        {filterOptions?.attributes?.map((group) => (
+        {/* Attributes — one group per entry, values OR'd within a group.
+            Single-value groups are filtered out and the rest capped — see
+            getFilterableAttributeGroups. */}
+        {filterableAttributeGroups.map((group) => (
           <div key={group.name}>
             <h4 className="text-sm font-semibold mb-3" style={{ color: 'var(--tg-theme-text-color)' }}>
               {group.name}

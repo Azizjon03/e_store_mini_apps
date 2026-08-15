@@ -18,19 +18,19 @@ export function CategoryChips({ categories }: CategoryChipsProps) {
   const showMore = overflow || visibleCategories.length % 4 !== 0;
 
   return (
-    <div className="px-4 pt-4 pb-3">
-      <div className="grid grid-cols-4 gap-3">
+    <div className="px-4 pt-2 pb-2">
+      <div className="grid grid-cols-4 gap-x-3 gap-y-2">
         {visibleCategories.map((cat) => (
           <button
             key={cat.id}
-            className="flex flex-col items-center gap-1.5 press-effect"
+            className="flex flex-col items-center gap-1 press-effect"
             onClick={() => {
               haptic.selectionChanged();
               navigate(`/catalog/${cat.slug}`);
             }}
           >
             <div
-              className="w-12 h-12 flex items-center justify-center overflow-hidden"
+              className="w-11 h-11 flex items-center justify-center overflow-hidden"
               style={{
                 backgroundColor: 'var(--tg-theme-secondary-bg-color)',
                 borderRadius: 'var(--storex-radius-md)',
@@ -60,14 +60,14 @@ export function CategoryChips({ categories }: CategoryChipsProps) {
 
         {showMore && (
           <button
-            className="flex flex-col items-center gap-1.5 press-effect"
+            className="flex flex-col items-center gap-1 press-effect"
             onClick={() => {
               haptic.selectionChanged();
               navigate('/catalog');
             }}
           >
             <div
-              className="w-12 h-12 flex items-center justify-center"
+              className="w-11 h-11 flex items-center justify-center"
               style={{
                 backgroundColor: 'var(--tg-theme-secondary-bg-color)',
                 borderRadius: 'var(--storex-radius-md)',

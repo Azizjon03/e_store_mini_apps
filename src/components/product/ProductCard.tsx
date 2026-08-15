@@ -135,7 +135,7 @@ export function ProductCard({ product }: ProductCardProps) {
 
         {product.reviews_avg_rating && product.reviews_avg_rating > 0 && (
           <div className="flex items-center gap-1">
-            <svg width="11" height="11" viewBox="0 0 12 12" fill="#f59e0b">
+            <svg width="11" height="11" viewBox="0 0 12 12" fill="var(--storex-warning)">
               <path d="M6 0l1.76 3.57 3.94.57-2.85 2.78.67 3.93L6 8.89 2.48 10.85l.67-3.93L.3 4.14l3.94-.57z" />
             </svg>
             <span className="text-[11px]" style={{ color: 'var(--tg-theme-hint-color)' }}>
@@ -170,7 +170,7 @@ export function ProductCard({ product }: ProductCardProps) {
           {product.in_stock !== false ? (
             <button
               aria-label={inCart ? "Savatga o'tish" : added ? "Qo'shildi" : "Sotib olish"}
-              className="w-full mt-2.5 h-8 text-[12px] font-semibold tracking-wide uppercase transition-all duration-150 active:scale-[0.98]"
+              className="w-full mt-2 h-8 text-[12px] font-semibold tracking-wide uppercase transition-all duration-150 active:scale-[0.98]"
               style={{
                 borderRadius: 'var(--storex-radius-sm)',
                 backgroundColor: inCart
@@ -186,7 +186,7 @@ export function ProductCard({ product }: ProductCardProps) {
             </button>
           ) : (
             <span
-              className="w-full mt-2.5 h-8 grid place-items-center text-[11px] font-medium"
+              className="w-full mt-2 h-8 grid place-items-center text-[11px] font-medium"
               style={{
                 backgroundColor: 'var(--tg-theme-secondary-bg-color)',
                 color: 'var(--tg-theme-hint-color)',

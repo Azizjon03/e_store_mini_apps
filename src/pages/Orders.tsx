@@ -104,6 +104,29 @@ export default function Orders() {
 
   return (
     <PageLayout showSearch={false}>
+      {/* Header — every other screen has a title + back control; this one
+          is reached from Profile's "Buyurtmalarim" link and previously
+          dropped straight into the filter chips with no way back except the
+          tab bar. */}
+      <div
+        className="px-4 py-4 flex items-center gap-3"
+        style={{ backgroundColor: 'var(--tg-theme-bg-color)' }}
+      >
+        <button
+          aria-label="Orqaga"
+          className="shrink-0 w-9 h-9 flex items-center justify-center press-effect"
+          onClick={() => navigate(-1)}
+          style={{ color: 'var(--tg-theme-text-color)' }}
+        >
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+            <path d="M12.5 15l-5-5 5-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+        <h1 className="text-[17px] font-bold" style={{ color: 'var(--tg-theme-text-color)' }}>
+          Buyurtmalar
+        </h1>
+      </div>
+
       {/* Status filter tabs */}
       <div
         className="sticky top-0 z-20 px-4 py-2 overflow-x-auto scrollbar-hide"

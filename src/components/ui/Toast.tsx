@@ -1,11 +1,14 @@
 import { useEffect, useState, useCallback } from 'react';
 import { toastListeners, type ToastType, type ToastMessage } from '@/lib/toast';
 
+// Semantic colours come from the theme tokens so a toast matches the rest of
+// the app in both Telegram themes; `info` stays on the link colour because
+// that is the theme's own "this is informational" hue.
 const COLORS: Record<ToastType, string> = {
-  success: '#31b545',
-  error: '#e53e3e',
-  info: 'var(--tg-theme-link-color, #2481cc)',
-  warning: '#e8a427',
+  success: 'var(--storex-success)',
+  error: 'var(--storex-danger)',
+  info: 'var(--tg-theme-link-color)',
+  warning: 'var(--storex-warning)',
 };
 
 export function ToastContainer() {

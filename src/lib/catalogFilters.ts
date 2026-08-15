@@ -1,4 +1,4 @@
-import type { PaginatedResponse, Product, ProductFilters } from '@/api/types';
+import type { FilterOptions, PaginatedResponse, Product, ProductFilters } from '@/api/types';
 
 /**
  * Everything editable inside Catalog's filter BottomSheet. Category (the
@@ -95,4 +95,31 @@ export function getAppliedFilterCount(
     return meta.applied_filters_count;
   }
   return countCatalogFilters(fallback);
+}
+
+/** Cap on attribute groups rendered in the filter sheet — see the comment on
+ * `getFilterableAttributeGroups` for why this exists at all. */
+const MAX_FILTER_ATTRIBUTE_GROUPS = 6;
+
+/**
+ * Real catalogues carry ~40 attribute groups (`FilterOptions.attributes`),
+ * many with exactly one possible value ("S Pen: Ha", "Model: iPhone 15 Pro
+ * Max") — every product that has the group at all shares that one value, so
+ * selecting it can never narrow the result set. It's pure scroll weight in
+ * a sheet whose scroll area is ~300px tall at 360x640.
+ *
+ * Rule: drop single-value groups outright (they can't filter anything), sort
+ * the rest by how many values they offer (more values = more discriminating
+ * = more useful to see first), and cap the list so Brend and the handful of
+ * genuinely useful specs stay reachable without scrolling past the whole
+ * catalogue's attribute schema first.
+ */
+export function getFilterableAttributeGroups(
+  attributes: FilterOptions['attributes'],
+): NonNullable<FilterOptions['attributes']> {
+  if (!attributes) return [];
+  return [...attributes]
+    .filter((group) => group.values.length > 1)
+    .sort((a, b) => b.values.length - a.values.length)
+    .slice(0, MAX_FILTER_ATTRIBUTE_GROUPS);
 }

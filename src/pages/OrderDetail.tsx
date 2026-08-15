@@ -2,6 +2,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { getOrderDetail } from '@/api/storefront';
 import { formatPrice, formatDateTime, t } from '@/lib/format';
+import { formatAddressLine } from '@/lib/address';
+import { getPaymentMethodLabel } from '@/lib/payment';
 import { useHaptic } from '@/hooks/useHaptic';
 import { useBackButton } from '@/hooks/useBackButton';
 import { showToast } from '@/lib/toast';
@@ -118,6 +120,15 @@ export default function OrderDetail() {
                 const isLast = index === STATUS_ORDER.length - 1;
                 const config = getStatusConfig(status);
                 const trackEntry = order.tracking?.find((tr) => tr.status === status);
+                // The backend seeds a tracking row for every status up front,
+                // including ones not yet reached — those carry a zero/epoch
+                // timestamp rather than omitting the field, which would
+                // otherwise format as "1-yan 06:00". Only a completed step's
+                // timestamp is real, and even then it must actually parse to
+                // a date after the epoch.
+                const trackTimestamp = trackEntry?.timestamp;
+                const hasRealTimestamp =
+                  isCompleted && !!trackTimestamp && new Date(trackTimestamp).getTime() > 0;
 
                 return (
                   <div key={status} className="flex gap-3">
@@ -156,9 +167,9 @@ export default function OrderDetail() {
                       >
                         {config.label}
                       </p>
-                      {trackEntry && (
+                      {hasRealTimestamp && trackTimestamp && (
                         <p className="text-[11px] mt-0.5" style={{ color: 'var(--tg-theme-hint-color)' }}>
-                          {formatDateTime(trackEntry.timestamp)}
+                          {formatDateTime(trackTimestamp)}
                         </p>
                       )}
                     </div>
@@ -302,7 +313,7 @@ export default function OrderDetail() {
                   <circle cx="8" cy="6" r="1.5" fill="currentColor" />
                 </svg>
                 <p className="text-[13px]" style={{ color: 'var(--tg-theme-text-color)' }}>
-                  {order.shipping_address.city}, {order.shipping_address.district}, {order.shipping_address.full_address}
+                  {formatAddressLine(order.shipping_address)}
                 </p>
               </div>
             </div>
@@ -324,7 +335,7 @@ export default function OrderDetail() {
               <path d="M4 10h3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
             </svg>
             <p className="text-[13px]" style={{ color: 'var(--tg-theme-text-color)' }}>
-              {order.payment_method_name ?? (order.payment_method === 'click' ? 'Click' : order.payment_method === 'payme' ? 'Payme' : "Naqd to'lov")}
+              {getPaymentMethodLabel(order.payment_method)}
             </p>
           </div>
         </div>

@@ -7,6 +7,7 @@ import { useAppStore } from '@/store/appStore';
 import { useBackButton } from '@/hooks/useBackButton';
 import { useHaptic } from '@/hooks/useHaptic';
 import { formatPrice, t } from '@/lib/format';
+import { formatAddressLine } from '@/lib/address';
 import { showToast } from '@/lib/toast';
 import { Spinner } from '@/components/ui/Spinner';
 import { isTelegramWebApp, WebApp } from '@/lib/telegram';
@@ -418,7 +419,7 @@ export default function Checkout() {
                             {addr.label} {addr.is_primary && <span className="text-[11px]" style={{ color: 'var(--tg-theme-hint-color)' }}>(asosiy)</span>}
                           </>
                         }
-                        subtitle={<p className="line-clamp-1">{addr.city}, {addr.district}, {addr.full_address}</p>}
+                        subtitle={<p className="line-clamp-1">{formatAddressLine(addr)}</p>}
                       />
                     );
                   })}

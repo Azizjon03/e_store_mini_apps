@@ -64,6 +64,15 @@ export default function ProductDetail() {
       : product.price
     : 0;
 
+  // `old_price` / `discount_percent` describe the *base* product's price,
+  // not any variant's — `ProductVariant` (src/api/types.ts) carries no
+  // `old_price` of its own, so there's no honest "before" price to compare
+  // a variant's current price against. Once a selected variant changes what
+  // "currentPrice" actually is, the base discount no longer describes it —
+  // show the strike-through/badge only while the displayed price still
+  // matches the base product's own price.
+  const showBaseDiscount = currentPrice === product?.price;
+
   const handleAddToCart = useCallback(() => {
     if (!product) return;
     if (needsVariant) return;
@@ -243,12 +252,12 @@ export default function ProductDetail() {
           <span className="text-[24px] font-extrabold leading-none" style={{ color: 'var(--storex-primary)' }}>
             {formatPrice(currentPrice)}
           </span>
-          {product.old_price && (
+          {product.old_price && showBaseDiscount && (
             <span className="text-[14px] line-through" style={{ color: 'var(--storex-price-old)' }}>
               {formatPrice(product.old_price)}
             </span>
           )}
-          {discountPercent > 0 && (
+          {discountPercent > 0 && showBaseDiscount && (
             <span
               className="px-2 py-0.5 text-[11px] font-bold text-white"
               style={{
@@ -313,12 +322,26 @@ export default function ProductDetail() {
           </>
         )}
 
-        {/* Attributes / Specs */}
+        {/* Attributes / Specs — always the base product's own spec. The API
+            gives a variant only a `name` (src/api/types.ts, `ProductVariant`),
+            no per-variant attribute map, so there's no reliable way to know
+            which rows a selected variant would actually change (parsing
+            `variant.name` against attribute values would be a guess, not
+            data). Labelling it honestly beats silently guessing which rows
+            to hide. */}
         {product.attributes && Object.keys(product.attributes).length > 0 && (
           <>
-            <h3 className="text-[16px] font-bold mb-3" style={{ color: 'var(--tg-theme-text-color)' }}>
+            <h3
+              className={`text-[16px] font-bold ${variants.length > 0 ? 'mb-1' : 'mb-3'}`}
+              style={{ color: 'var(--tg-theme-text-color)' }}
+            >
               Xususiyatlari
             </h3>
+            {variants.length > 0 && (
+              <p className="text-[13px] mb-3" style={{ color: 'var(--tg-theme-hint-color)' }}>
+                Asosiy model xususiyatlari — tanlangan tur uchun farq qilishi mumkin
+              </p>
+            )}
             <div
               className="overflow-hidden mb-4"
               style={{ borderRadius: 'var(--storex-radius-md)' }}

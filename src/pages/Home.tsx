@@ -30,23 +30,27 @@ function getSectionLink(section: HomeSection): string | undefined {
   }
 }
 
-// Skeleton mirrors the real block order — CategoryChips, divider, first
-// product section (grid), hero — so there's no layout jump once data lands.
+// Skeleton mirrors the real block order — CategoryChips, first product
+// section (grid), hero — so there's no layout jump once data lands. No
+// divider between CategoryChips and the first section: matches the real
+// render (see the comment on that omission in Home() below) and
+// DESIGN_STANDARD.md §2 ("birinchi section'dan oldin hech qachon divider
+// yo'q"). Sizes below mirror CategoryChips.tsx's own px-4 pt-2 pb-2 /
+// w-11 h-11 icon / gap-1 exactly — drifting either one out of sync
+// reintroduces the jump this skeleton exists to avoid.
 function HomeSkeleton() {
   return (
     <div className="page-enter">
-      <div className="px-4 pt-4 pb-2">
-        <div className="grid grid-cols-4 gap-y-4 gap-x-3">
+      <div className="px-4 pt-2 pb-2">
+        <div className="grid grid-cols-4 gap-y-2 gap-x-3">
           {Array.from({ length: 8 }, (_, i) => (
-            <div key={i} className="flex flex-col items-center gap-1.5">
-              <Skeleton className="w-14 h-14 rounded-full" />
+            <div key={i} className="flex flex-col items-center gap-1">
+              <Skeleton className="w-11 h-11 rounded-(--storex-radius-md)" />
               <Skeleton className="h-3 w-12 rounded-(--storex-radius-sm)" />
             </div>
           ))}
         </div>
       </div>
-
-      <div className="storex-divider" />
 
       <div className="storex-section">
         <div className="storex-section-header">
@@ -147,8 +151,13 @@ export default function Home() {
           <HomeSkeleton />
         ) : (
           <div className="page-enter">
+            {/* No divider here: DESIGN_STANDARD.md §2 — "birinchi section'dan
+                oldin hech qachon divider yo'q" — and CategoryChips isn't a
+                storex-section itself, so the first real section (flash sale
+                or the first ProductSection below) counts as that first
+                section. Removing it also recovers 8px that above-the-fold
+                spacing needed (see CategoryChips.tsx sizing). */}
             {data.categories.length > 0 && <CategoryChips categories={data.categories} />}
-            {data.categories.length > 0 && <div className="storex-divider" />}
 
             {hasSections ? (
               <>
@@ -229,12 +238,25 @@ function FlashSaleSection({ flashSale }: { flashSale: FlashSale }) {
   return (
     <section className="storex-section">
       <div className="storex-section-header">
-        <h2 className="storex-section-title">{flashSale.title}</h2>
+        <h2 className="storex-section-title truncate min-w-0 flex-1">{flashSale.title}</h2>
         <FlashSaleCountdown endsAt={flashSale.ends_at} />
       </div>
       <ProductGrid products={flashSale.products} />
     </section>
   );
+}
+
+// Hours-only ("372:46:22") stops being readable past a day. Days get their
+// own "N kun" prefix and the hour field resets to 0-23; below 24h left, the
+// shape is unchanged from before (HH:MM:SS).
+function formatCountdown(diffMs: number): string {
+  const totalSeconds = Math.floor(diffMs / 1000);
+  const days = Math.floor(totalSeconds / 86400);
+  const hours = Math.floor((totalSeconds % 86400) / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  const clock = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  return days > 0 ? `${days} kun ${clock}` : clock;
 }
 
 // Leaf: owns the per-second string and its own interval, isolated from
@@ -246,11 +268,7 @@ function FlashSaleCountdown({ endsAt }: { endsAt: string }) {
   useEffect(() => {
     function calcTimeLeft() {
       const diff = new Date(endsAt).getTime() - Date.now();
-      if (diff <= 0) { setTimeLeft(''); return; }
-      const h = Math.floor(diff / 3600000);
-      const m = Math.floor((diff % 3600000) / 60000);
-      const s = Math.floor((diff % 60000) / 1000);
-      setTimeLeft(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`);
+      setTimeLeft(diff <= 0 ? '' : formatCountdown(diff));
     }
     calcTimeLeft();
     const interval = setInterval(calcTimeLeft, 1000);
@@ -261,7 +279,7 @@ function FlashSaleCountdown({ endsAt }: { endsAt: string }) {
 
   return (
     <span
-      className="text-[13px] font-bold px-2 py-1 tabular-nums"
+      className="text-[13px] font-bold px-2 py-1 tabular-nums shrink-0"
       style={{
         backgroundColor: 'var(--storex-danger)',
         color: '#fff',

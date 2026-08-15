@@ -6,6 +6,7 @@ import { Skeleton } from '@/components/ui/Skeleton';
 import { useHaptic } from '@/hooks/useHaptic';
 import { showToast } from '@/lib/toast';
 import { useTelegram } from '@/hooks/useTelegram';
+import { formatAddressLine } from '@/lib/address';
 
 export default function Addresses() {
   const navigate = useNavigate();
@@ -74,7 +75,7 @@ export default function Addresses() {
                       )}
                     </div>
                     <p className="text-sm" style={{ color: 'var(--tg-theme-hint-color)' }}>
-                      {addr.city}, {addr.district}, {addr.full_address}
+                      {formatAddressLine(addr)}
                     </p>
                     {addr.landmark && (
                       <p className="text-xs mt-1" style={{ color: 'var(--tg-theme-hint-color)' }}>

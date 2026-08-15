@@ -3,6 +3,10 @@ import { createBrowserRouter } from 'react-router-dom';
 import { App } from './App';
 import { LazyPage } from '@/components/ui/LazyPage';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
+// Eager, not lazy() — this is both the catch-all 404 element and the root
+// errorElement, so it must render without depending on a chunk load that
+// might itself be the thing that failed.
+import NotFound from '@/pages/NotFound';
 
 const Home = lazy(() => import('@/pages/Home'));
 const Catalog = lazy(() => import('@/pages/Catalog'));
@@ -24,6 +28,11 @@ export const router = createBrowserRouter([
   {
     path: '/',
     element: <App />,
+    // Catches any thrown routing/render error (including a stale chunk after
+    // a deploy) so the user lands on a real screen instead of React Router's
+    // built-in dev error page — "Unexpected Application Error!" — which has
+    // no navigation and no way back except reloading.
+    errorElement: <NotFound />,
     children: [
       { index: true, element: <LazyPage><Home /></LazyPage> },
       { path: 'catalog', element: <LazyPage><Catalog /></LazyPage> },
@@ -49,6 +58,11 @@ export const router = createBrowserRouter([
           { path: 'favorites', element: <LazyPage><Favorites /></LazyPage> },
         ],
       },
+
+      // Catch-all: any URL that doesn't match a route above (e.g. a backend
+      // `link_url` pointing at a server-side path) renders a real 404 screen
+      // instead of falling through to the router's default error page.
+      { path: '*', element: <NotFound /> },
     ],
   },
 ]);

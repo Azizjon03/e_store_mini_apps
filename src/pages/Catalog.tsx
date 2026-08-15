@@ -176,7 +176,10 @@ export default function Catalog() {
           </svg>
           Filtr
           {activeFilterCount > 0 && (
-            <span className="text-[10px] font-bold">({activeFilterCount})</span>
+            <>
+              {' '}
+              <span className="text-[10px] font-bold">({activeFilterCount})</span>
+            </>
           )}
         </button>
       </div>
