@@ -5,6 +5,7 @@ import { getOrders } from '@/api/storefront';
 import { PageLayout } from '@/components/layout/PageLayout';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Skeleton } from '@/components/ui/Skeleton';
+import { Chip } from '@/components/ui/Chip';
 import { formatPrice, formatDate } from '@/lib/format';
 import { useHaptic } from '@/hooks/useHaptic';
 import { showToast } from '@/lib/toast';
@@ -110,16 +111,16 @@ export default function Orders() {
       >
         <div className="flex gap-2">
           {FILTER_TABS.map((tab) => (
-            <button
+            <Chip
               key={tab.value}
-              className={`storex-chip ${activeFilter === tab.value ? 'active' : ''}`}
+              active={activeFilter === tab.value}
               onClick={() => {
                 setActiveFilter(tab.value);
                 haptic.selectionChanged();
               }}
             >
               {tab.label}
-            </button>
+            </Chip>
           ))}
         </div>
       </div>
@@ -168,28 +169,41 @@ export default function Orders() {
                   </p>
                 </div>
 
-                {/* Product thumbnails */}
+                {/* Product thumbnails — prefer the smaller `thumbnail` snapshot
+                    field over the full-size `image` when the backend sent
+                    one, and never load more than the 48x48 box needs. */}
                 <div className="px-4 py-2 flex items-center gap-1.5">
-                  {order.items.slice(0, 4).map((item) => (
-                    <div
-                      key={item.id}
-                      className="w-12 h-12 overflow-hidden shrink-0"
-                      style={{
-                        borderRadius: 'var(--storex-radius-sm)',
-                        backgroundColor: 'var(--tg-theme-secondary-bg-color)',
-                      }}
-                    >
-                      {item.product.image ? (
-                        <img src={item.product.image} alt="" className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center">
-                          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ color: 'var(--tg-theme-hint-color)' }}>
-                            <rect x="1" y="1" width="14" height="14" rx="2" stroke="currentColor" strokeWidth="1.2" />
-                          </svg>
-                        </div>
-                      )}
-                    </div>
-                  ))}
+                  {order.items.slice(0, 4).map((item) => {
+                    const thumbnailSrc = item.product.thumbnail || item.product.image;
+                    return (
+                      <div
+                        key={item.id}
+                        className="w-12 h-12 overflow-hidden shrink-0"
+                        style={{
+                          borderRadius: 'var(--storex-radius-sm)',
+                          backgroundColor: 'var(--tg-theme-secondary-bg-color)',
+                        }}
+                      >
+                        {thumbnailSrc ? (
+                          <img
+                            src={thumbnailSrc}
+                            alt=""
+                            width={48}
+                            height={48}
+                            loading="lazy"
+                            decoding="async"
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ color: 'var(--tg-theme-hint-color)' }}>
+                              <rect x="1" y="1" width="14" height="14" rx="2" stroke="currentColor" strokeWidth="1.2" />
+                            </svg>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                   {order.items.length > 4 && (
                     <div
                       className="w-12 h-12 flex items-center justify-center shrink-0 text-[13px] font-medium"

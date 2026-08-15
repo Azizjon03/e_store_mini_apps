@@ -33,6 +33,9 @@ export function HeroBanner({ banners }: HeroBannerProps) {
   const navigate = useNavigate();
   const touchStartX = useRef(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
+  const carouselRef = useRef<HTMLDivElement>(null);
+  const [isInView, setIsInView] = useState(true);
+  const [isPageVisible, setIsPageVisible] = useState(true);
 
   const goTo = useCallback(
     (index: number) => {
@@ -41,13 +44,36 @@ export function HeroBanner({ banners }: HeroBannerProps) {
     [banners.length],
   );
 
+  // Pause autoplay while the carousel has scrolled out of the viewport —
+  // otherwise the interval keeps ticking for a banner nobody can see.
   useEffect(() => {
-    if (banners.length <= 1) return;
+    const el = carouselRef.current;
+    if (!el) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => setIsInView(entry.isIntersecting),
+      { threshold: 0.1 },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  // Pause autoplay while the tab/WebView is backgrounded.
+  useEffect(() => {
+    function handleVisibilityChange() {
+      setIsPageVisible(document.visibilityState === 'visible');
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, []);
+
+  useEffect(() => {
+    if (banners.length <= 1 || !isInView || !isPageVisible) return;
     intervalRef.current = setInterval(() => {
       setCurrent((prev) => (prev + 1) % banners.length);
     }, 4000);
     return () => clearInterval(intervalRef.current);
-  }, [banners.length]);
+  }, [banners.length, isInView, isPageVisible]);
 
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartX.current = e.touches[0].clientX;
@@ -70,6 +96,7 @@ export function HeroBanner({ banners }: HeroBannerProps) {
   return (
     <div className="relative mx-4 mt-1 mb-1">
       <div
+        ref={carouselRef}
         className="relative overflow-hidden"
         style={{ height: 140, borderRadius: 'var(--storex-radius-lg)' }}
         onTouchStart={handleTouchStart}

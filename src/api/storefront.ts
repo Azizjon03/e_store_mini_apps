@@ -19,6 +19,42 @@ import type {
   Profile,
 } from './types';
 
+// Axios's default params serializer (toFormData-based, not `qs`) flattens a
+// nested object like `attributes: { Rang: ['Qora', 'Oq'] }` into
+// `attributes[Rang][0]=Qora&attributes[Rang][1]=Oq` — explicit numeric
+// indices, not the `attributes[Rang][]=` shape the backend's docs describe.
+// PHP's query parser happens to build the same array either way, but that's
+// an accident of how PHP indexes sequential brackets, not a guarantee — so
+// this serializer builds the exact documented wire format instead of relying
+// on it. It also turns `brands: number[]` into repeated `brands[]=` pairs
+// the same way, which the default serializer already got right.
+function serializeProductParams(params: Record<string, unknown>): string {
+  const parts: string[] = [];
+  const append = (key: string, value: unknown) => {
+    if (value === undefined || value === null) return;
+    parts.push(`${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`);
+  };
+
+  for (const [key, value] of Object.entries(params)) {
+    if (value === undefined || value === null) continue;
+    if (Array.isArray(value)) {
+      value.forEach((v) => append(`${key}[]`, v));
+    } else if (typeof value === 'object') {
+      for (const [subKey, subValue] of Object.entries(value as Record<string, unknown>)) {
+        if (Array.isArray(subValue)) {
+          subValue.forEach((v) => append(`${key}[${subKey}][]`, v));
+        } else {
+          append(`${key}[${subKey}]`, subValue);
+        }
+      }
+    } else {
+      append(key, value);
+    }
+  }
+
+  return parts.join('&');
+}
+
 // GET /cart returns a flat object — items live under `data`, everything else
 // (total_price, delivery_cost, free_delivery_remaining, estimated_delivery) is a
 // sibling field, not nested under a `Cart`-shaped `data`. The backend does not send
@@ -47,7 +83,10 @@ export const getCategories = () =>
 // Products (public)
 export const getProducts = (params: ProductFilters) =>
   apiClient
-    .get<PaginatedResponse<Product>>('/products', { params })
+    .get<PaginatedResponse<Product>>('/products', {
+      params,
+      paramsSerializer: serializeProductParams,
+    })
     .then((r) => r.data);
 
 export const getProductDetail = (slug: string) =>

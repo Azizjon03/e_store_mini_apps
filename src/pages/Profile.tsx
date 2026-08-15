@@ -125,7 +125,7 @@ export default function Profile() {
                 className="w-24 h-24 rounded-full overflow-hidden"
                 style={{
                   border: '4px solid var(--stitch-surface-container-lowest)',
-                  boxShadow: '0 20px 25px -5px rgba(0, 97, 164, 0.05), 0 8px 10px -6px rgba(0, 97, 164, 0.05)',
+                  boxShadow: 'var(--storex-shadow-lg)',
                 }}
               >
                 {user?.avatar ? (
@@ -154,7 +154,7 @@ export default function Profile() {
                   backgroundColor: 'var(--stitch-primary)',
                   border: '2px solid var(--stitch-surface-container-lowest)',
                   color: '#fff',
-                  boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)',
+                  boxShadow: 'var(--storex-shadow-md)',
                 }}
               >
                 <span className="material-symbols-outlined filled" style={{ fontSize: 14 }}>
@@ -244,7 +244,7 @@ function StatCard({
         backgroundColor: 'var(--stitch-surface-container-lowest)',
         borderRadius: 12,
         padding: 16,
-        boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+        boxShadow: 'var(--storex-shadow-sm)',
       }}
     >
       <div
@@ -295,7 +295,7 @@ function MenuGroup({
         style={{
           backgroundColor: 'var(--stitch-surface-container-lowest)',
           borderRadius: 16,
-          boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+          boxShadow: 'var(--storex-shadow-sm)',
         }}
       >
         {items.map((item, idx) => {

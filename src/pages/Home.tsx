@@ -10,6 +10,7 @@ import { ProductSection } from '@/components/product/ProductSection';
 import { ProductGrid } from '@/components/product/ProductGrid';
 import { Skeleton, ProductCardSkeleton } from '@/components/ui/Skeleton';
 import { PullToRefresh } from '@/components/ui/PullToRefresh';
+import { EmptyState } from '@/components/ui/EmptyState';
 
 // Same section->link mapping HomeSections.tsx uses internally. Duplicated
 // (not imported) rather than exported cross-file, since a shared non-component
@@ -132,7 +133,7 @@ export default function Home() {
   // first regular section, or the zero-section "Ommabop" fallback — is
   // pushed below the hero instead. Same "has products" liveness check
   // FlashSaleSection itself uses below (it further hides on actual expiry
-  // via its own countdown effect, not here — Date.now() can't be called
+  // via its own hasExpired effect, not here — Date.now() can't be called
   // during render).
   const hasLiveFlashSale = !!data?.flash_sale && data.flash_sale.products.length > 0;
 
@@ -191,21 +192,11 @@ export default function Home() {
                 {hasLiveFlashSale && data.banners.length > 0 && (
                   <HeroBanner banners={data.banners} />
                 )}
-                <div className="flex flex-col items-center justify-center py-20 px-4">
-                  <div className="text-5xl mb-4">🏪</div>
-                  <p
-                    className="text-base font-semibold text-center"
-                    style={{ color: 'var(--tg-theme-text-color)' }}
-                  >
-                    Tez orada mahsulotlar qo'shiladi
-                  </p>
-                  <p
-                    className="text-sm text-center mt-1"
-                    style={{ color: 'var(--tg-theme-hint-color)' }}
-                  >
-                    Do'kon hozircha sozlanmoqda
-                  </p>
-                </div>
+                <EmptyState
+                  icon="🏪"
+                  title="Tez orada mahsulotlar qo'shiladi"
+                  description="Do'kon hozircha sozlanmoqda"
+                />
               </>
             )}
           </div>
@@ -215,12 +206,46 @@ export default function Home() {
   );
 }
 
+// Holds only the "has the sale actually expired" boolean, derived from the
+// same 1s tick FlashSaleCountdown uses below — but this state only flips
+// once (false -> true), so React bails out of re-rendering on every other
+// tick (same value === no re-render). That keeps ProductGrid mounted here
+// from re-rendering every second; only the leaf countdown does that.
 function FlashSaleSection({ flashSale }: { flashSale: FlashSale }) {
+  const [hasExpired, setHasExpired] = useState(false);
+
+  useEffect(() => {
+    function checkExpiry() {
+      const diff = new Date(flashSale.ends_at).getTime() - Date.now();
+      if (diff <= 0) setHasExpired(true);
+    }
+    checkExpiry();
+    const interval = setInterval(checkExpiry, 1000);
+    return () => clearInterval(interval);
+  }, [flashSale.ends_at]);
+
+  if (hasExpired) return null;
+
+  return (
+    <section className="storex-section">
+      <div className="storex-section-header">
+        <h2 className="storex-section-title">{flashSale.title}</h2>
+        <FlashSaleCountdown endsAt={flashSale.ends_at} />
+      </div>
+      <ProductGrid products={flashSale.products} />
+    </section>
+  );
+}
+
+// Leaf: owns the per-second string and its own interval, isolated from
+// FlashSaleSection so the product grid next to it doesn't re-render 3600
+// times an hour.
+function FlashSaleCountdown({ endsAt }: { endsAt: string }) {
   const [timeLeft, setTimeLeft] = useState('');
 
   useEffect(() => {
     function calcTimeLeft() {
-      const diff = new Date(flashSale.ends_at).getTime() - Date.now();
+      const diff = new Date(endsAt).getTime() - Date.now();
       if (diff <= 0) { setTimeLeft(''); return; }
       const h = Math.floor(diff / 3600000);
       const m = Math.floor((diff % 3600000) / 60000);
@@ -230,26 +255,20 @@ function FlashSaleSection({ flashSale }: { flashSale: FlashSale }) {
     calcTimeLeft();
     const interval = setInterval(calcTimeLeft, 1000);
     return () => clearInterval(interval);
-  }, [flashSale.ends_at]);
+  }, [endsAt]);
 
   if (!timeLeft) return null;
 
   return (
-    <section className="storex-section">
-      <div className="storex-section-header">
-        <h2 className="storex-section-title">{flashSale.title}</h2>
-        <span
-          className="text-[13px] font-bold px-2 py-1 tabular-nums"
-          style={{
-            backgroundColor: 'var(--storex-danger)',
-            color: '#fff',
-            borderRadius: 'var(--storex-radius-xs)',
-          }}
-        >
-          {timeLeft}
-        </span>
-      </div>
-      <ProductGrid products={flashSale.products} />
-    </section>
+    <span
+      className="text-[13px] font-bold px-2 py-1 tabular-nums"
+      style={{
+        backgroundColor: 'var(--storex-danger)',
+        color: '#fff',
+        borderRadius: 'var(--storex-radius-xs)',
+      }}
+    >
+      {timeLeft}
+    </span>
   );
 }

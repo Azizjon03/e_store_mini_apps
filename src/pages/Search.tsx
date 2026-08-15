@@ -4,13 +4,15 @@ import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
 import { searchProducts, getPopularSearches, getSearchSuggestions } from '@/api/storefront';
 import { useAppStore } from '@/store/appStore';
 import { useHaptic } from '@/hooks/useHaptic';
-import { ProductCard } from '@/components/product/ProductCard';
-import { ProductCardSkeleton } from '@/components/ui/Skeleton';
+import { useDebounce } from '@/hooks/useDebounce';
+import { ProductGrid } from '@/components/product/ProductGrid';
+import { Chip } from '@/components/ui/Chip';
+import { EmptyState } from '@/components/ui/EmptyState';
 
 export default function Search() {
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
-  const [debouncedQuery, setDebouncedQuery] = useState('');
+  const debouncedQuery = useDebounce(query.trim(), 300);
   const inputRef = useRef<HTMLInputElement>(null);
   const loaderRef = useRef<HTMLDivElement>(null);
   const haptic = useHaptic();
@@ -24,14 +26,6 @@ export default function Search() {
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
-
-  // Debounce 300ms
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedQuery(query.trim());
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [query]);
 
   // Search results (infinite scroll — mirrors useInfiniteProducts' pagination logic)
   const {
@@ -268,18 +262,14 @@ export default function Search() {
               </p>
               <div className="flex gap-2 flex-wrap">
                 {popularSearches.map((term) => (
-                  <button
+                  <Chip
                     key={term}
-                    className="storex-chip press-effect"
-                    style={{
-                      backgroundColor: 'var(--storex-primary-light)',
-                      borderColor: 'transparent',
-                      color: 'var(--storex-primary)',
-                    }}
+                    active
+                    className="press-effect"
                     onClick={() => handlePopularClick(term)}
                   >
                     {term}
-                  </button>
+                  </Chip>
                 ))}
               </div>
             </div>
@@ -314,56 +304,42 @@ export default function Search() {
 
       {/* Search results */}
       {showResults && (
-        <div className="px-4">
+        <>
           {isSearching ? (
-            <div className="grid grid-cols-2 gap-3 py-4">
-              {Array.from({ length: 4 }, (_, i) => (
-                <ProductCardSkeleton key={i} />
-              ))}
+            <div className="py-4">
+              <ProductGrid products={[]} isLoading skeletonCount={4} />
             </div>
           ) : products.length > 0 ? (
             <>
               <p
-                className="text-[13px] pt-4 pb-3"
+                className="text-[13px] px-4 pt-4 pb-3"
                 style={{ color: 'var(--tg-theme-hint-color)' }}
               >
                 {total} ta natija
               </p>
               {/* Engaging with a result is the most common intent signal on mobile —
                   most shoppers tap a card rather than pressing Enter first. */}
-              <div
-                className="grid grid-cols-2 gap-3 pb-6"
-                onClickCapture={() => commitSearch(query)}
-              >
-                {products.map((product) => (
-                  <ProductCard key={product.id} product={product} />
-                ))}
+              <div className="pb-6" onClickCapture={() => commitSearch(query)}>
+                <ProductGrid products={products} />
               </div>
               <div ref={loaderRef} className="pb-6">
-                {isFetchingNextPage && (
-                  <div className="grid grid-cols-2 gap-3">
-                    <ProductCardSkeleton />
-                    <ProductCardSkeleton />
-                  </div>
-                )}
+                {isFetchingNextPage && <ProductGrid products={[]} isLoading skeletonCount={2} />}
               </div>
             </>
           ) : (
-            <div className="flex flex-col items-center justify-center py-20 text-center">
-              <svg width="48" height="48" viewBox="0 0 48 48" fill="none" className="mb-4" style={{ color: 'var(--tg-theme-hint-color)' }}>
-                <circle cx="20" cy="20" r="14" stroke="currentColor" strokeWidth="2.5" />
-                <path d="M30 30l12 12" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
-                <path d="M14 20h12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-              </svg>
-              <p className="text-[17px] font-semibold mb-1" style={{ color: 'var(--tg-theme-text-color)' }}>
-                Hech narsa topilmadi
-              </p>
-              <p className="text-[13px]" style={{ color: 'var(--tg-theme-hint-color)' }}>
-                "{debouncedQuery}" bo'yicha natija yo'q. Boshqa so'z bilan qidirib ko'ring.
-              </p>
-            </div>
+            <EmptyState
+              icon={
+                <svg width="48" height="48" viewBox="0 0 48 48" fill="none" style={{ color: 'var(--tg-theme-hint-color)' }}>
+                  <circle cx="20" cy="20" r="14" stroke="currentColor" strokeWidth="2.5" />
+                  <path d="M30 30l12 12" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+                  <path d="M14 20h12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                </svg>
+              }
+              title="Hech narsa topilmadi"
+              description={`"${debouncedQuery}" bo'yicha natija yo'q. Boshqa so'z bilan qidirib ko'ring.`}
+            />
           )}
-        </div>
+        </>
       )}
     </div>
   );

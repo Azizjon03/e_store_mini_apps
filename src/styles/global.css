@@ -360,12 +360,20 @@ img {
   opacity: 0.85;
 }
 
-/* Glass card — for hero banner overlays per "Digital Atelier" concept */
+/* Glass plate — for hero banner text overlays per "Digital Atelier" concept.
+   Sits on top of an arbitrary photo, not the page background, so it needs a
+   fixed dark scrim rather than a theme-following surface: a literal white
+   fill (the old rule) turns invisible against a light banner, and a
+   tg-theme-mixed fill would flip light/dark with the theme instead of
+   staying legible under the white title text it's meant to anchor. Built
+   with color-mix (matching the token-mix idiom used elsewhere in this file)
+   instead of rgba so the intent — mix toward transparent — reads the same
+   way as the rest of the sheet. */
 .storex-glass {
-  background: rgba(255, 255, 255, 0.18);
+  background: color-mix(in srgb, black 55%, transparent);
   backdrop-filter: blur(14px) saturate(180%);
   -webkit-backdrop-filter: blur(14px) saturate(180%);
-  border: 1px solid rgba(255, 255, 255, 0.25);
+  border: 1px solid color-mix(in srgb, white 20%, transparent);
 }
 
 /* Tonal surface — secondary-bg fonli "tonal shift" (border'siz, faqat ton farqi) */

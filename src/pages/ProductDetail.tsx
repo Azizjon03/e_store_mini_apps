@@ -1,13 +1,15 @@
-import { useState, useCallback, useRef, useMemo, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { getProductDetail } from '@/api/storefront';
 import { formatPrice, formatDate, t } from '@/lib/format';
-import { useCartStore } from '@/store/cartStore';
+import { useCartStore, makeItemId } from '@/store/cartStore';
 import { useHaptic } from '@/hooks/useHaptic';
 import { useBackButton } from '@/hooks/useBackButton';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { ProductCard } from '@/components/product/ProductCard';
+import { QuantityStepper } from '@/components/ui/QuantityStepper';
+import { Chip } from '@/components/ui/Chip';
 import { useFavorite } from '@/hooks/useFavorite';
 import type { ProductVariant } from '@/api/types';
 
@@ -21,7 +23,7 @@ export default function ProductDetail() {
   useBackButton();
 
   const [currentImage, setCurrentImage] = useState(0);
-  const [selectedVariants, setSelectedVariants] = useState<Record<string, ProductVariant>>({});
+  const [selectedVariant, setSelectedVariant] = useState<ProductVariant | undefined>(undefined);
   const [descExpanded, setDescExpanded] = useState(false);
   const [justAdded, setJustAdded] = useState(false);
   const addedTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -43,25 +45,28 @@ export default function ProductDetail() {
 
   const images = product?.images?.length ? product.images : product?.image ? [product.image] : [];
 
-  const variantTypes = useMemo(
-    () => product?.variants ? [...new Set(product.variants.map((v) => v.type))] : [],
-    [product],
-  );
-  const allVariantsSelected = variantTypes.every((type) => selectedVariants[type]);
+  // A variant is one entry of the product's own `variants` array — a single
+  // list of named options, not a type/value matrix. Nothing to select means
+  // the product stays immediately buyable.
+  const variants = product?.variants ?? [];
+  const needsVariant = variants.length > 0 && !selectedVariant;
 
-  const selectedVariant = Object.values(selectedVariants)[0];
-  const cartItemId = selectedVariant
-    ? `${product?.id}:${selectedVariant.id}`
-    : `${product?.id}`;
+  // Must go through makeItemId: variant ids are 0-based, and a hand-built key
+  // disagrees with the store's for id 0.
+  const cartItemId = product ? makeItemId(product.id, selectedVariant?.id) : null;
   const inCart = cartItems.find((i) => i.id === cartItemId);
 
+  // `variant.price` is what checkout charges; base + extra_price is the
+  // fallback for a variant that carries no price of its own.
   const currentPrice = product
-    ? product.price + Object.values(selectedVariants).reduce((sum, v) => sum + (v.extra_price ?? 0), 0)
+    ? selectedVariant
+      ? selectedVariant.price ?? product.price + (selectedVariant.extra_price ?? 0)
+      : product.price
     : 0;
 
   const handleAddToCart = useCallback(() => {
     if (!product) return;
-    if (variantTypes.length > 0 && !allVariantsSelected) return;
+    if (needsVariant) return;
     if (inCart) {
       navigate('/cart');
       return;
@@ -71,7 +76,7 @@ export default function ProductDetail() {
     setJustAdded(true);
     if (addedTimerRef.current) clearTimeout(addedTimerRef.current);
     addedTimerRef.current = setTimeout(() => setJustAdded(false), 1500);
-  }, [product, variantTypes, allVariantsSelected, inCart, addItem, selectedVariant, haptic, navigate]);
+  }, [product, needsVariant, inCart, addItem, selectedVariant, haptic, navigate]);
 
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartX.current = e.touches[0].clientX;
@@ -194,7 +199,12 @@ export default function ProductDetail() {
                 style={{
                   width: i === currentImage ? 16 : 5,
                   height: 5,
-                  backgroundColor: i === currentImage ? 'var(--storex-primary)' : 'rgba(0,0,0,0.2)',
+                  // Sits on the page background, not on the photo, so a fixed
+                  // black dot disappears in dark mode.
+                  backgroundColor:
+                    i === currentImage
+                      ? 'var(--storex-primary)'
+                      : 'color-mix(in srgb, var(--tg-theme-text-color) 20%, transparent)',
                 }}
               />
             ))}
@@ -215,13 +225,13 @@ export default function ProductDetail() {
           <div className="flex items-center gap-1.5 mb-3">
             <div className="flex gap-0.5">
               {Array.from({ length: 5 }, (_, i) => (
-                <svg key={i} width="14" height="14" viewBox="0 0 12 12" fill={i < Math.round(product.rating ?? 0) ? 'var(--storex-warning)' : 'var(--tg-theme-hint-color)'}>
+                <svg key={i} width="14" height="14" viewBox="0 0 12 12" fill={i < Math.round(product.reviews_avg_rating ?? 0) ? 'var(--storex-warning)' : 'var(--tg-theme-hint-color)'}>
                   <path d="M6 0l1.76 3.57 3.94.57-2.85 2.78.67 3.93L6 8.89 2.48 10.85l.67-3.93L.3 4.14l3.94-.57z" />
                 </svg>
               ))}
             </div>
             <span className="text-[13px] font-medium" style={{ color: 'var(--tg-theme-text-color)' }}>
-              {product.rating}
+              {(product.reviews_avg_rating ?? 0).toFixed(1)}
             </span>
             <span className="text-[13px]" style={{ color: 'var(--tg-theme-hint-color)' }}>
               ({product.reviews_count} ta sharh)
@@ -251,53 +261,28 @@ export default function ProductDetail() {
           )}
         </div>
 
-        {/* Variants */}
-        {variantTypes.map((type) => {
-          const variants = product.variants!.filter((v) => v.type === type);
-          return (
-            <div key={type} className="mb-5">
-              <p className="text-[14px] font-semibold mb-2.5" style={{ color: 'var(--tg-theme-text-color)' }}>
-                {type === 'color' ? 'Rang' : type === 'size' ? "O'lcham" : type}
-              </p>
-              <div className="flex gap-2 flex-wrap">
-                {variants.map((v) => {
-                  const isSelected = selectedVariants[type]?.id === v.id;
-                  return type === 'color' ? (
-                    <button
-                      key={v.id}
-                      className="w-9 h-9 rounded-full transition-all"
-                      style={{
-                        backgroundColor: v.value,
-                        border: isSelected ? '2.5px solid var(--storex-primary)' : '2px solid var(--storex-border)',
-                        outline: isSelected ? '2px solid var(--tg-theme-bg-color)' : 'none',
-                      }}
-                      onClick={() => {
-                        haptic.selectionChanged();
-                        setSelectedVariants((prev) => ({ ...prev, [type]: v }));
-                      }}
-                    />
-                  ) : (
-                    <button
-                      key={v.id}
-                      className="storex-chip"
-                      style={isSelected ? {
-                        backgroundColor: 'var(--storex-primary)',
-                        borderColor: 'var(--storex-primary)',
-                        color: '#fff',
-                      } : undefined}
-                      onClick={() => {
-                        haptic.selectionChanged();
-                        setSelectedVariants((prev) => ({ ...prev, [type]: v }));
-                      }}
-                    >
-                      {v.name}
-                    </button>
-                  );
-                })}
-              </div>
+        {/* Variants — one group, one selection, labelled by variant.name */}
+        {variants.length > 0 && (
+          <div className="mb-5">
+            <p className="text-[14px] font-semibold mb-3" style={{ color: 'var(--tg-theme-text-color)' }}>
+              Turini tanlang
+            </p>
+            <div className="flex gap-2 flex-wrap">
+              {variants.map((v) => (
+                <Chip
+                  key={v.id}
+                  active={selectedVariant?.id === v.id}
+                  onClick={() => {
+                    haptic.selectionChanged();
+                    setSelectedVariant(v);
+                  }}
+                >
+                  {v.name}
+                </Chip>
+              ))}
             </div>
-          );
-        })}
+          </div>
+        )}
 
         <div className="storex-divider -mx-4 my-4" />
 
@@ -436,47 +421,23 @@ export default function ProductDetail() {
         {inCart ? (
           // Savatda bo'lsa: qty stepper + "Savatga o'tish"
           <div className="flex items-center gap-2">
-            <div
-              className="flex items-center gap-3 px-2 py-1"
-              style={{
-                backgroundColor: 'var(--tg-theme-secondary-bg-color)',
-                borderRadius: 'var(--storex-radius-md)',
-                border: '1px solid var(--storex-border)',
-              }}
-            >
-              <button
-                className="w-9 h-9 grid place-items-center press-effect"
-                style={{ color: 'var(--storex-primary)' }}
-                onClick={() => {
-                  const cartStore = useCartStore.getState();
-                  if (inCart.quantity > 1) {
-                    cartStore.updateQuantity(inCart.id, inCart.quantity - 1);
-                    haptic.selectionChanged();
-                  } else {
-                    cartStore.removeItem(inCart.id);
-                    haptic.impact('light');
-                  }
-                }}
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="5" y1="12" x2="19" y2="12" /></svg>
-              </button>
-              <span
-                className="min-w-[24px] text-center text-[15px] font-semibold"
-                style={{ color: 'var(--tg-theme-text-color)' }}
-              >
-                {inCart.quantity}
-              </span>
-              <button
-                className="w-9 h-9 grid place-items-center press-effect"
-                style={{ color: 'var(--storex-primary)' }}
-                onClick={() => {
-                  useCartStore.getState().updateQuantity(inCart.id, inCart.quantity + 1);
+            <QuantityStepper
+              value={inCart.quantity}
+              onDecrement={() => {
+                const cartStore = useCartStore.getState();
+                if (inCart.quantity > 1) {
+                  cartStore.updateQuantity(inCart.id, inCart.quantity - 1);
                   haptic.selectionChanged();
-                }}
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
-              </button>
-            </div>
+                } else {
+                  cartStore.removeItem(inCart.id);
+                  haptic.impact('light');
+                }
+              }}
+              onIncrement={() => {
+                useCartStore.getState().updateQuantity(inCart.id, inCart.quantity + 1);
+                haptic.selectionChanged();
+              }}
+            />
             <button
               className="flex-1 py-3 text-[14px] font-semibold press-effect"
               style={{
@@ -498,13 +459,13 @@ export default function ProductDetail() {
               borderRadius: 'var(--storex-radius-md)',
               color: '#fff',
             }}
-            disabled={product.in_stock === false || (variantTypes.length > 0 && !allVariantsSelected)}
+            disabled={product.in_stock === false || needsVariant}
             onClick={handleAddToCart}
           >
             {product.in_stock === false ? (
               'Hozirda mavjud emas'
-            ) : variantTypes.length > 0 && !allVariantsSelected ? (
-              'Variantni tanlang'
+            ) : needsVariant ? (
+              'Turini tanlang'
             ) : justAdded ? (
               <>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">

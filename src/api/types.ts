@@ -38,11 +38,24 @@ export interface Category {
 }
 
 // Products
+// A variant as the backend actually stores it: `{name, sku, price}` on the
+// product's own JSON column, plus two fields ProductResource computes.
+// There is no `type`/`value` pair — those were assumed by an earlier frontend
+// draft and never existed in the data, which left the variant picker rendering
+// blank labels and blocking add-to-cart on every variant product.
 export interface ProductVariant {
+  // The variant's 0-based index within its product's `variants` array.
+  // Zero is a real id — never test this with truthiness (`variant.id ? …`),
+  // or the first variant silently collapses onto the no-variant cart line.
+  // Only stable while the product isn't re-edited; checkout resolves the
+  // variant by `name` server-side, so a stale index can't mis-price an order.
   id: number;
   name: string;
-  type: 'color' | 'size' | 'other';
-  value: string;
+  sku?: string;
+  // The variant's absolute price — what checkout actually charges.
+  price?: number;
+  // `price - product.price`, computed by the backend and omitted when the
+  // variant carries no price of its own.
   extra_price?: number;
   image?: string;
 }
@@ -67,7 +80,7 @@ export interface Product {
   image?: string;
   thumbnail?: string | null;
   images?: string[];
-  rating?: number;
+  reviews_avg_rating?: number;
   reviews_count?: number;
   in_stock?: boolean;
   stock_quantity?: number;
@@ -372,8 +385,14 @@ export interface ProductFilters {
   sort?: 'popular' | 'price_asc' | 'price_desc' | 'newest' | 'rating';
   min_price?: number;
   max_price?: number;
-  brands?: string[];
+  // Brand ids. Numbers, not strings — the backend casts and drops anything
+  // non-numeric rather than erroring, so a wrong type fails silently.
+  brands?: number[];
+  // Minimum average rating, 1–5. Products with no approved review never match.
   rating?: number;
+  // Attribute name -> selected values, e.g. `{ Rang: ['Qora', 'Oq'] }`.
+  // Values under one key are OR'd; separate keys are AND'd.
+  attributes?: Record<string, string[]>;
   discount_only?: boolean;
   q?: string;
 }

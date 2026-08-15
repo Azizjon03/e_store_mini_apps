@@ -6,6 +6,7 @@ import { useHaptic } from '@/hooks/useHaptic';
 import { PageLayout } from '@/components/layout/PageLayout';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { SubmitBar } from '@/components/ui/SubmitBar';
+import { QuantityStepper } from '@/components/ui/QuantityStepper';
 import { formatPrice, t } from '@/lib/format';
 import { applyPromoCode, removePromoCode as removePromoApi, getCart } from '@/api/storefront';
 import { useAuthStore } from '@/store/authStore';
@@ -135,46 +136,18 @@ export default function Cart() {
                 </p>
 
                 <div className="flex items-center gap-2 mt-2">
-                  {/* Quantity controls */}
-                  <div
-                    className="flex items-center overflow-hidden"
-                    style={{
-                      borderRadius: 'var(--storex-radius-sm)',
-                      border: '1px solid var(--storex-border)',
+                  <QuantityStepper
+                    value={item.quantity}
+                    removeAtMin
+                    onDecrement={() => {
+                      haptic.impact('light');
+                      updateQuantity(item.id, item.quantity - 1);
                     }}
-                  >
-                    <button
-                      className="w-8 h-7 flex items-center justify-center text-sm font-bold active:opacity-60"
-                      style={{ color: item.quantity === 1 ? 'var(--storex-danger)' : 'var(--storex-primary)' }}
-                      onClick={() => {
-                        haptic.impact('light');
-                        updateQuantity(item.id, item.quantity - 1);
-                      }}
-                    >
-                      {item.quantity === 1 ? (
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <polyline points="3 6 5 6 21 6" />
-                          <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
-                        </svg>
-                      ) : '−'}
-                    </button>
-                    <span
-                      className="w-7 text-center text-sm font-semibold"
-                      style={{ color: 'var(--tg-theme-text-color)' }}
-                    >
-                      {item.quantity}
-                    </span>
-                    <button
-                      className="w-8 h-7 flex items-center justify-center text-sm font-bold active:opacity-60"
-                      style={{ color: 'var(--storex-primary)' }}
-                      onClick={() => {
-                        haptic.impact('light');
-                        updateQuantity(item.id, item.quantity + 1);
-                      }}
-                    >
-                      +
-                    </button>
-                  </div>
+                    onIncrement={() => {
+                      haptic.impact('light');
+                      updateQuantity(item.id, item.quantity + 1);
+                    }}
+                  />
                 </div>
               </div>
             </div>
