@@ -6,10 +6,15 @@ import { EmptyState } from '@/components/ui/EmptyState';
  * Doubles as the router's catch-all route element (a real, unmatched URL —
  * e.g. a backend `link_url` that points at a server-side path) and as the
  * root route's `errorElement` (a thrown rendering/loading error, including a
- * stale chunk after a deploy). `useRouteError()` returns `undefined` when
- * there is no error to catch — i.e. when this is rendered as a normal route
- * element rather than an error boundary — so the same screen degrades to a
- * plain 404 in that case.
+ * stale chunk after a deploy), telling the two apart via `useRouteError()`.
+ *
+ * That discrimination has to test for `null` as well as `undefined`. React
+ * Router only wraps the element in a `RouteErrorContext.Provider` when an
+ * error actually exists, and that context is created with a default value of
+ * `null`; `useRouteError()` returns the context value whenever it is not
+ * `undefined`. So rendered as a plain route element it hands back `null`, not
+ * `undefined` — testing only for `undefined` made every unmatched URL show
+ * the thrown-error copy instead of the 404 copy.
  *
  * Imported eagerly (not `lazy()`) in `router.tsx` on purpose: this is the
  * fallback for a chunk failing to load, so it must not depend on a chunk
@@ -18,7 +23,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 export default function NotFound() {
   const navigate = useNavigate();
   const error = useRouteError();
-  const isNotFound = error === undefined || (isRouteErrorResponse(error) && error.status === 404);
+  const isNotFound = error == null || (isRouteErrorResponse(error) && error.status === 404);
 
   return (
     <PageLayout showSearch={false}>

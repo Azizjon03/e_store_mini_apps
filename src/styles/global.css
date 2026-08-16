@@ -67,6 +67,12 @@
   /* Layout constants */
   --storex-page-padding: 16px;
   --storex-tabbar-height: 56px;
+  /* Single source of truth for the phone-shaped app column. Below this width
+     nothing changes (the app just fills the viewport, as it always has);
+     above it, PageLayout and every fixed/sticky chrome element (TabBar,
+     SubmitBar, BottomSheet) center themselves into this column instead of
+     spanning the whole desktop/Telegram-Desktop window. */
+  --storex-app-max-width: 480px;
 
   /* Stitch design tokens (Material 3-style neutrals) — rebased onto the
      Telegram theme vars + storex tokens instead of fixed light hex, so any

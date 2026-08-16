@@ -35,15 +35,27 @@ export default function Cart() {
   const [promoMessage, setPromoMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const promoMutation = useMutation({
-    mutationFn: (code: string) => applyPromoCode(code),
+    // The cart is client-side until checkout, so the *server* cart is still
+    // empty while the customer is browsing. Without an explicit amount the
+    // backend validates the code against that empty cart and rejects every
+    // code with "Minimal buyurtma summasi: …" — pass the local goods subtotal
+    // (before discount and delivery) so it validates what the customer has.
+    mutationFn: (code: string) => applyPromoCode(code, subtotal()),
     onSuccess: (data) => {
       setPromoCode(data.promo.code, data.promo.discount_amount);
       setPromoMessage({ type: 'success', text: `Chegirma qo'llandi: -${data.promo.discount_percent}%` });
       setPromoInput('');
       haptic.notification('success');
     },
-    onError: () => {
-      setPromoMessage({ type: 'error', text: 'Promo-kod noto\'g\'ri yoki muddati o\'tgan' });
+    onError: (err: unknown) => {
+      // A local onError suppresses the global MutationCache toast, so this is
+      // the only message the shopper gets. The server explains *why* it
+      // refused (minimum amount, expired, already used); the generic line
+      // claimed the code was invalid, which was wrong in every observed case.
+      const message =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
+        "Promo-kod noto'g'ri yoki muddati o'tgan";
+      setPromoMessage({ type: 'error', text: message });
       haptic.notification('error');
     },
   });

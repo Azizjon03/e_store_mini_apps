@@ -117,7 +117,7 @@ export default function Profile() {
           </button>
         </header>
 
-        <main className="max-w-md mx-auto px-4 pt-4 pb-32">
+        <main className="px-4 pt-4 pb-32">
           {/* User Identity */}
           <section className="flex flex-col items-center mb-8">
             <div className="relative mb-4">

@@ -56,12 +56,21 @@ export default function ProductDetail() {
   const cartItemId = product ? makeItemId(product.id, selectedVariant?.id) : null;
   const inCart = cartItems.find((i) => i.id === cartItemId);
 
+  // `product.price` is declared `number` in src/api/types.ts, but the
+  // backend casts it `decimal:2` and Laravel serializes decimal casts as a
+  // numeric STRING ("14990000.00", confirmed against the live API) — while
+  // `variant.price` inside the same response is a plain JSON number. Without
+  // normalizing both to `Number(...)`, a variant priced identically to the
+  // base product (e.g. "14990000" vs "14990000.00") compared unequal below
+  // just from the type mismatch, not an actual price difference.
+  const basePrice = product ? Number(product.price) : 0;
+
   // `variant.price` is what checkout charges; base + extra_price is the
   // fallback for a variant that carries no price of its own.
   const currentPrice = product
     ? selectedVariant
-      ? selectedVariant.price ?? product.price + (selectedVariant.extra_price ?? 0)
-      : product.price
+      ? selectedVariant.price ?? basePrice + (selectedVariant.extra_price ?? 0)
+      : basePrice
     : 0;
 
   // `old_price` / `discount_percent` describe the *base* product's price,
@@ -70,8 +79,17 @@ export default function ProductDetail() {
   // a variant's current price against. Once a selected variant changes what
   // "currentPrice" actually is, the base discount no longer describes it —
   // show the strike-through/badge only while the displayed price still
-  // matches the base product's own price.
-  const showBaseDiscount = currentPrice === product?.price;
+  // matches the base product's own price (comparing against `basePrice`,
+  // not the raw `product.price` string, is what makes that comparison
+  // actually work — see basePrice above).
+  const showBaseDiscount = currentPrice === basePrice;
+
+  // The API sends the base "before" price as `compare_price`; `old_price` is
+  // declared on the `Product` type but the backend never populates it (see
+  // ProductCard, which already reads `product.old_price || product.compare_price`
+  // for the same reason). Reading `old_price` alone here meant the
+  // strike-through price never rendered at all.
+  const oldPrice = product?.old_price || product?.compare_price;
 
   const handleAddToCart = useCallback(() => {
     if (!product) return;
@@ -252,9 +270,9 @@ export default function ProductDetail() {
           <span className="text-[24px] font-extrabold leading-none" style={{ color: 'var(--storex-primary)' }}>
             {formatPrice(currentPrice)}
           </span>
-          {product.old_price && showBaseDiscount && (
+          {oldPrice && showBaseDiscount && (
             <span className="text-[14px] line-through" style={{ color: 'var(--storex-price-old)' }}>
-              {formatPrice(product.old_price)}
+              {formatPrice(oldPrice)}
             </span>
           )}
           {discountPercent > 0 && showBaseDiscount && (
@@ -434,7 +452,11 @@ export default function ProductDetail() {
 
       {/* Bottom action bar (non-Telegram fallback) — bitta sticky CTA */}
       <div
-        className="fixed bottom-0 left-0 right-0 z-40 px-4 py-3"
+        // `fixed` escapes AppShell's column, so this carries the same cap as
+        // TabBar and SubmitBar. Without it the bar — and its tap area — spanned
+        // the whole desktop window: a click 400px outside the column still
+        // added to the cart.
+        className="fixed bottom-0 left-0 right-0 z-40 px-4 py-3 mx-auto max-w-(--storex-app-max-width)"
         style={{
           backgroundColor: 'var(--tg-theme-bg-color)',
           borderTop: '0.5px solid var(--storex-border)',

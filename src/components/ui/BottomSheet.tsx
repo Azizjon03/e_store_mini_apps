@@ -30,9 +30,11 @@ export function BottomSheet({ isOpen, onClose, title, children }: BottomSheetPro
         onClick={onClose}
       />
 
-      {/* Sheet */}
+      {/* Sheet — centered into the same phone-width column as the rest of the
+          chrome; the backdrop above stays full-bleed so it still dims the
+          whole viewport on desktop. */}
       <div
-        className="absolute bottom-0 left-0 right-0 max-h-[85vh] flex flex-col slide-up"
+        className="absolute bottom-0 left-0 right-0 mx-auto max-w-(--storex-app-max-width) max-h-[85vh] flex flex-col slide-up"
         style={{
           backgroundColor: 'var(--tg-theme-bg-color, #fff)',
           borderTopLeftRadius: 'var(--storex-radius-lg)',

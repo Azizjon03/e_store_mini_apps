@@ -33,7 +33,7 @@ export function TabBar() {
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-40 flex"
+      className="fixed bottom-0 left-0 right-0 z-40 flex mx-auto max-w-(--storex-app-max-width)"
       style={{
         backgroundColor: 'var(--tg-theme-bg-color)',
         borderTop: '1px solid var(--storex-border)',

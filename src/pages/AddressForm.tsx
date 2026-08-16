@@ -5,6 +5,7 @@ import { getAddresses, createAddress, updateAddress } from '@/api/storefront';
 import { useHaptic } from '@/hooks/useHaptic';
 import { showToast } from '@/lib/toast';
 import { SubmitBar } from '@/components/ui/SubmitBar';
+import { Chip } from '@/components/ui/Chip';
 import type { Address } from '@/api/types';
 
 const LABELS = ['Uy', 'Ish', 'Boshqa'];
@@ -50,6 +51,15 @@ function AddressFormFields({ existing, isEdit, addressId }: {
   const [landmark, setLandmark] = useState(existing?.landmark ?? '');
   const [isPrimary, setIsPrimary] = useState(existing?.is_primary ?? false);
 
+  // `label` is free text on the backend (`nullable|string|max:50`), not an
+  // enum — seeded/older rows carry values like "Ish joyi" or "Ofis" that
+  // match none of the three canonical chips below. Appending the saved
+  // value when it doesn't match keeps it visibly selected instead of
+  // landing on no chip at all.
+  const labelOptions = existing?.label && !LABELS.includes(existing.label)
+    ? [...LABELS, existing.label]
+    : LABELS;
+
   const saveMutation = useMutation({
     mutationFn: () => {
       const data = {
@@ -76,7 +86,13 @@ function AddressFormFields({ existing, isEdit, addressId }: {
     },
   });
 
-  const isValid = city.trim() && district.trim() && fullAddress.trim();
+  // Backend validation (POST/PUT /addresses) only marks `full_address` as
+  // `required` — `label`, `city`, `district`, `landmark` are all
+  // `nullable`. Gating submission on city/district being non-empty
+  // disagreed with the server, and presented an existing address (whose
+  // city/district come back as `""` from the seeded data) as a broken form
+  // the user had to repair before saving anything else about it.
+  const isValid = fullAddress.trim().length > 0;
 
   const handleSave = () => {
     if (isValid) saveMutation.mutate();
@@ -88,28 +104,20 @@ function AddressFormFields({ existing, isEdit, addressId }: {
         {/* Label */}
         <div>
           <label className="text-sm font-medium mb-2 block" style={{ color: 'var(--tg-theme-text-color)' }}>
-            Label
+            Manzil nomi
           </label>
-          <div className="flex gap-2">
-            {LABELS.map((l) => (
-              <button
+          <div className="flex gap-2 flex-wrap">
+            {labelOptions.map((l) => (
+              <Chip
                 key={l}
-                className="px-4 py-2 rounded-xl text-sm font-medium transition-all"
-                style={{
-                  backgroundColor: label === l
-                    ? 'var(--tg-theme-button-color)'
-                    : 'var(--tg-theme-secondary-bg-color)',
-                  color: label === l
-                    ? 'var(--tg-theme-button-text-color)'
-                    : 'var(--tg-theme-text-color)',
-                }}
+                active={label === l}
                 onClick={() => {
                   setLabel(l);
                   haptic.selectionChanged();
                 }}
               >
                 {l}
-              </button>
+              </Chip>
             ))}
           </div>
         </div>
@@ -117,7 +125,7 @@ function AddressFormFields({ existing, isEdit, addressId }: {
         {/* City */}
         <div>
           <label className="text-sm font-medium mb-2 block" style={{ color: 'var(--tg-theme-text-color)' }}>
-            Shahar *
+            Shahar (ixtiyoriy)
           </label>
           <input
             type="text"
@@ -135,7 +143,7 @@ function AddressFormFields({ existing, isEdit, addressId }: {
         {/* District */}
         <div>
           <label className="text-sm font-medium mb-2 block" style={{ color: 'var(--tg-theme-text-color)' }}>
-            Tuman *
+            Tuman (ixtiyoriy)
           </label>
           <input
             type="text"

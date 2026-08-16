@@ -38,10 +38,13 @@ fallback that must keep working (`isTelegramWebApp` gates every WebApp call).
 
 ## Available components
 
-`src/components/ui/`: `Badge` (cart count bubble), `BottomSheet`, `EmptyState`
-(emoji + title + optional action), `ErrorBoundary`, `LazyPage`, `NetworkError`,
-`PullToRefresh`, `Skeleton` + `ProductCardSkeleton`, `Spinner`, `SubmitBar`,
-`Toast` (imperative via `showToast` from `@/lib/toast`).
+`src/components/ui/`: `Badge` (cart count bubble), `BottomSheet`, `Chip`
+(wraps `.storex-chip` / `.storex-chip.active`), `EmptyState` (icon — emoji
+string or a `ReactNode` — + title + optional action), `ErrorBoundary`,
+`LazyPage`, `NetworkError`, `PullToRefresh`, `QuantityStepper` (48px targets,
+optional trash icon at min), `RadioRow` (icon / title / subtitle / trailing /
+selected), `Skeleton` + `ProductCardSkeleton`, `Spinner`, `SubmitBar`, `Toast`
+(imperative via `showToast` from `@/lib/toast`).
 
 `src/components/layout/`: `PageLayout` (search bar + main + tab bar), `SearchBar`
 (sticky, primary-colored), `TabBar` (4 tabs: Asosiy `/`, Katalog `/catalog`,
@@ -49,10 +52,26 @@ Savat `/cart`, Profil `/profile`).
 
 `src/components/product/`: `ProductCard`, `ProductGrid` (2-col), `ProductSection`.
 `src/components/home/`: `HeroBanner`, `CategoryChips`, `HomeSections`.
+`src/components/catalog/`: `FilterSheet` (price, rating, brands, attributes,
+live result count).
+
+Shared logic that is not a component lives in `src/lib/` — `catalogFilters`,
+`address`, `payment`, `format`, `toast` — and in `src/hooks/` (`useDebounce`,
+the Telegram bridges). `react-refresh/only-export-components` forbids exporting
+a non-component from a component file, so a shared helper always goes there.
 
 **Anything not on this list does not exist.** No tabs, accordion, modal, carousel
-library, date picker, rating widget, stepper, segmented control, drawer, tooltip,
+library, date picker, rating widget, segmented control, drawer, tooltip,
 combobox. Proposing one means proposing new code — say so and estimate it.
+
+## App shell width
+
+Every route renders inside `AppShell` (`src/app/App.tsx`) — a centred column
+capped at `--storex-app-max-width` (480px), with `--tg-theme-secondary-bg-color`
+behind it. Below 480px the column is the full viewport, so the Telegram
+rendering is unaffected. `fixed`/`absolute` chrome escapes that wrapper and
+carries the same cap itself: `TabBar`, `SubmitBar`, `BottomSheet`. A new piece
+of fixed chrome must do the same or it will span a desktop window.
 
 ## Icons — there is no icon library
 
@@ -131,10 +150,18 @@ is a separate repo, so a missing field is a cross-repo change, not a quick edit.
 
 Facts worth knowing up front:
 
-- `Product` carries `rating`, `reviews_count`, `in_stock`, `stock_quantity`,
-  `discount_percent`, `old_price`, `variants`, `attributes` — but most are **optional**
-  and may simply be absent in a given response. Design the empty case, not just the
-  full one.
+- `Product` carries `reviews_avg_rating`, `reviews_count`, `in_stock`,
+  `stock_quantity`, `discount_percent`, `compare_price`, `variants`, `attributes`
+  — but most are **optional** and may simply be absent in a given response. Design
+  the empty case, not just the full one. Two traps that have already cost a bug
+  each: the average rating is `reviews_avg_rating`, never `rating`; and the
+  "before" price arrives as `compare_price`, so a check against `old_price`
+  alone is always false.
+- A **variant** is `{id, name, sku?, price?, extra_price?, image?}` — one flat
+  list of named options, *not* a type/value matrix. There is no colour value and
+  no per-variant attribute map, so a swatch picker or a spec table that changes
+  with the selection cannot be built from this data. `id` is the variant's
+  0-based index, so it must never be tested for truthiness.
 - `HomeData` = `banners`, optional `banners_mid`, `categories`, `sections`,
   optional `flash_sale`. The home page's structure is largely server-driven.
 - `StoreConfig` (`GET /init`) supplies branding, `delivery_info`
@@ -142,11 +169,16 @@ Facts worth knowing up front:
   `pickup_points`, `social_links` — good raw material for trust and urgency signals.
 - Localized fields arrive as `string | Record<string, string>` and must be rendered
   through `t()` from `@/lib/format`. Prices go through `formatPrice` (appends `so'm`).
+  Money now arrives as real JSON numbers on every storefront endpoint — it used to
+  be quoted (`"14990000.00"`, Laravel's `decimal:2` cast), which made `+` concatenate
+  and `===` fail against a variant's numeric price. Admin-only resources still leak
+  the string form, so do not assume it holds outside `storefront/*`.
 - **The cart is client-side only** until checkout pushes it to the server. Any design
   implying server-side cart state (cross-device sync, saved-for-later, live stock
   re-check in the cart) is a backend change.
-- Delivery cost is currently hardcoded to 0 in `Checkout.tsx`. A design showing a
-  real delivery fee needs that wired up first.
+- Delivery cost is derived from `StoreConfig.delivery_info` and goes to zero for
+  pickup. Pickup points are selectable at checkout, and the pickup option hides
+  itself when the store has none configured.
 - `BACKEND_TASKS.md` lists fields already requested from the backend — check it
   before declaring something impossible.
 
@@ -174,10 +206,24 @@ Facts worth knowing up front:
 Real defects found in the current code — worth folding into a redesign of the
 affected area rather than treating as out of scope:
 
-1. `Badge.tsx` reads `var(--store-badge-bg)` / `var(--store-badge-text)`, but
-   `global.css` defines `--storex-badge-bg` / `--storex-badge-text`. The cart count
-   bubble therefore renders with no background color.
-2. `App.tsx` gates the whole app behind a hardcoded "StoreX" welcome screen with
-   inline styles that ignore both the design tokens and `StoreConfig.company_name`.
-3. Two parallel token systems (`--storex-*` and `--stitch-*`) coexist, so screens
-   drift apart visually depending on which one they were built against.
+1. `App.tsx` gates the whole app behind a hardcoded "StoreX" welcome screen with
+   inline styles that ignore the design tokens. It cannot show
+   `StoreConfig.company_name`: `GET /init` only runs *after* the user taps
+   "Kirish", so the name is not known yet. Fixing this means moving the fetch
+   ahead of the gate, not just reading a field.
+2. The favourite button on `ProductCard` is 28px — below the 48px tap-target
+   minimum. Enlarging it changes the card's composition, so it is a design call.
+3. `useMainButton` has no consumers. Telegram's MainButton did not render
+   reliably, so every screen uses `SubmitBar` instead. Do not design a screen
+   whose primary action lives on the native button.
+4. The demo dataset has **no product images at all** and the seeded attribute
+   values are near-unique free text (`6.8" Dynamic AMOLED 2X`). A concept that
+   depends on photography or on tidy facets will look far better in the mockup
+   than in this store.
+5. `Favorites` and `AddressForm` still use raw emoji as controls (🗑 ✏️) while
+   the rest of the app uses inline SVG, and `AddressForm` has no header or back
+   control outside Telegram.
+
+Closed since this file was written: the `Badge` token mismatch, the two parallel
+token systems (`--stitch-*` is now defined in terms of `--tg-theme-*` /
+`--storex-*`), and the hard-coded delivery cost.
