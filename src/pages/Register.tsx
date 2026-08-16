@@ -5,6 +5,11 @@ import { useAuthStore } from '@/store/authStore';
 import { showToast } from '@/lib/toast';
 import { useHaptic } from '@/hooks/useHaptic';
 import { getTelegramUser, isTelegramWebApp } from '@/lib/telegram';
+import { apiErrorMessage } from '@/lib/apiError';
+import { isPhoneComplete, toPhoneE164 } from '@/lib/phone';
+import PhoneInput from '@/components/ui/PhoneInput';
+
+const PASSWORD_MIN_LENGTH = 8;
 
 export default function Register() {
   const navigate = useNavigate();
@@ -13,9 +18,10 @@ export default function Register() {
   const setSession = useAuthStore((s) => s.setSession);
 
   const [name, setName] = useState('');
-  const [phone, setPhone] = useState('+998');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [submitting, setSubmitting] = useState(false);
 
   const next = searchParams.get('next') || '/';
@@ -30,12 +36,31 @@ export default function Register() {
     }
   }, []);
 
+  const markTouched = (field: string) => setTouched((prev) => ({ ...prev, [field]: true }));
+
+  // Server qoidalari bilan bir xil: raqam `+998` + 9 ta raqam, parol >= 8 belgi.
+  const errors = {
+    name: name.trim() ? null : 'Ismingizni kiriting.',
+    phone: isPhoneComplete(phone)
+      ? null
+      : "Raqamni to'liq kiriting: 9 ta raqam (masalan 90 123 45 67).",
+    password:
+      password.length >= PASSWORD_MIN_LENGTH
+        ? null
+        : `Parol kamida ${PASSWORD_MIN_LENGTH} ta belgidan iborat bo'lishi kerak.`,
+    confirm: confirm === password ? null : 'Parollar mos kelmadi.',
+  };
+  const isValid = Object.values(errors).every((e) => e === null);
+
+  const shown = (field: keyof typeof errors) => (touched[field] ? errors[field] : null);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (submitting) return;
 
-    if (password !== confirm) {
-      showToast('error', 'Parollar mos kelmadi.');
+    if (!isValid) {
+      setTouched({ name: true, phone: true, password: true, confirm: true });
+      haptic.notification('error');
       return;
     }
 
@@ -44,7 +69,7 @@ export default function Register() {
       const tgUser = isTelegramWebApp ? getTelegramUser() : undefined;
       const { data, token } = await registerApi({
         name: name.trim(),
-        phone,
+        phone: toPhoneE164(phone),
         password,
         password_confirmation: confirm,
         telegram_id: tgUser ? String(tgUser.id) : null,
@@ -54,9 +79,7 @@ export default function Register() {
       navigate(next, { replace: true });
     } catch (err: unknown) {
       haptic.notification('error');
-      const response = (err as { response?: { data?: { message?: string; errors?: Record<string, string[]> } } })?.response?.data;
-      const firstError = response?.errors ? Object.values(response.errors)[0]?.[0] : undefined;
-      showToast('error', firstError ?? response?.message ?? "Ro'yxatdan o'tishda xatolik.");
+      showToast('error', apiErrorMessage(err, "Ro'yxatdan o'tishda xatolik."));
     } finally {
       setSubmitting(false);
     }
@@ -80,39 +103,39 @@ export default function Register() {
         Buyurtma berish uchun hisob yarating.
       </p>
 
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>
         <FieldInput
           label="Ism"
           type="text"
           autoComplete="name"
-          required
           value={name}
           onChange={setName}
+          onBlur={() => markTouched('name')}
+          error={shown('name')}
         />
-        <FieldInput
-          label="Telefon raqam"
-          type="tel"
-          autoComplete="tel"
-          required
+        <PhoneInput
           value={phone}
           onChange={setPhone}
-          placeholder="+998901234567"
+          onBlur={() => markTouched('phone')}
+          error={shown('phone')}
         />
         <FieldInput
-          label="Parol (kamida 8 belgi, harf va raqam)"
+          label={`Parol (kamida ${PASSWORD_MIN_LENGTH} ta belgi)`}
           type="password"
           autoComplete="new-password"
-          required
           value={password}
           onChange={setPassword}
+          onBlur={() => markTouched('password')}
+          error={shown('password')}
         />
         <FieldInput
           label="Parolni tasdiqlang"
           type="password"
           autoComplete="new-password"
-          required
           value={confirm}
           onChange={setConfirm}
+          onBlur={() => markTouched('confirm')}
+          error={shown('confirm')}
         />
 
         <button
@@ -149,11 +172,13 @@ function FieldInput({
   label,
   value,
   onChange,
+  error,
   ...rest
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
+  error?: string | null;
 } & Omit<React.InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange'>) {
   return (
     <label className="flex flex-col gap-1">
@@ -164,14 +189,20 @@ function FieldInput({
         {...rest}
         value={value}
         onChange={(e) => onChange(e.target.value)}
+        aria-invalid={Boolean(error)}
         className="px-3 py-3 text-[15px] outline-none"
         style={{
           backgroundColor: 'var(--tg-theme-secondary-bg-color)',
           color: 'var(--tg-theme-text-color)',
           borderRadius: 'var(--storex-radius-md)',
-          border: '1px solid var(--storex-border)',
+          border: `1px solid ${error ? 'var(--storex-danger)' : 'var(--storex-border)'}`,
         }}
       />
+      {error && (
+        <span className="text-[12px]" style={{ color: 'var(--storex-danger)' }}>
+          {error}
+        </span>
+      )}
     </label>
   );
 }

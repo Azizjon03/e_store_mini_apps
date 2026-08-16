@@ -267,6 +267,47 @@ Hozirgi API yetarli, o'zgartirish shart emas.
 
 ---
 
+## 11. Product Reviews (`/api/v1/storefront/products/{product}/reviews`) — YANGI, BAJARILDI ✅
+
+Product detail sahifasi `reviews_count` / `reviews_avg_rating`ni ilgaridan qaytarardi, lekin sharhlarning o'zini o'qib bo'lmasdi (`ProductDetail.reviews` frontend tipida e'lon qilingan, backend hech qachon to'ldirmagan). Backend PR: `feat/storefront-reviews` (base: `fix/storefront-integrity`), https://github.com/Azizjon03/e_store_back/pull/27.
+
+**1. `GET /storefront/products/{product}` (detail) — `data.reviews` qo'shildi**, faqat detail javobida (katalog ro'yxatida — `GET /storefront/products` — bu kalit yo'q, qasddan: har bir mahsulot uchun sharhlarni yuklash paginatsiyalangan ro'yxatda N+1 bo'lardi). Eng so'nggi 3 ta tasdiqlangan (`approved`) sharh, yangidan eskiga:
+```json
+{
+  "data": {
+    "id": 1,
+    "...": "boshqa mahsulot maydonlari",
+    "reviews": [
+      {
+        "id": 10,
+        "user_name": "Azizjon R.",
+        "rating": 5,
+        "title": "Zo'r mahsulot!",
+        "text": "Sifati juda yaxshi, narxi ham maqul.",
+        "pros": "Sifati yaxshi",
+        "cons": null,
+        "is_verified_purchase": true,
+        "created_at": "2026-08-10T12:00:00.000000Z"
+      }
+    ]
+  }
+}
+```
+
+**2. `GET /storefront/products/{product}/reviews` — yangi endpoint**, mahsulotning barcha sharhlari, sahifalangan (standart Laravel resource-collection paginatsiyasi — `data` + `links` + `meta`):
+- `product` — `show()` bilan bir xil: slug yoki id qabul qilinadi.
+- Faqat `approved` status, yangidan eskiga tartiblangan.
+- `?per_page=` — standart 10, maksimum 100 (`IndexProductRequest` bilan bir xil qopqoq).
+- `?rating=` (ixtiyoriy) — minimal emas, aynan shu reyting bo'yicha filtr (1–5).
+- Noma'lum mahsulot uchun 404.
+- Har bir sharh obyekti yuqoridagi `reviews[]` elementi bilan bir xil shaklda.
+
+Frontend tomonda e'tibor bering: `src/api/types.ts`dagi `Review` interfeysi hozircha faqat `id, user_name, rating, text, created_at`ni bilyapti — backend qo'shimcha ravishda `title`, `pros`, `cons`, `is_verified_purchase` ham qaytaradi, kerak bo'lsa tipga qo'shish mumkin. `user_photo` backend'da yo'q (mavjud emas — bunday ustun DB'da yo'q).
+
+**Maxfiylik:** `user_name` hech qachon to'liq ism emas — "Azizjon Rahmonov" → "Azizjon R." (ism + familiya bosh harfi). Bir so'zli ism o'zgarishsiz qoladi. Foydalanuvchi bog'lanmagan yoki o'chirilgan bo'lsa — `"Mijoz"`.
+
+---
+
 ## Yangi Endpointlar
 
 | # | Endpoint | Method | Tavsif |
@@ -276,6 +317,7 @@ Hozirgi API yetarli, o'zgartirish shart emas.
 | 3 | `/tg/checkout/delivery-slots` | GET | Mavjud yetkazish vaqtlari |
 | 4 | `/tg/checkout/payment-methods` | GET | Mavjud to'lov usullari |
 | 5 | `/tg/addresses/{id}/primary` | PUT | Asosiy manzilni belgilash |
+| 6 | `/products/{product}/reviews` | GET | Mahsulot sharhlari, sahifalangan (BAJARILDI ✅) |
 
 ## O'zgargan Endpointlar
 
@@ -288,6 +330,7 @@ Hozirgi API yetarli, o'zgartirish shart emas.
 | 5 | `/tg/orders/{id}` | +tracking[].driver, +estimated_delivery |
 | 6 | `/tg/profile` | +stats{} |
 | 7 | `/tg/addresses` | +lat/lng required |
+| 8 | `/products/{product}` (detail) | +reviews[] (faqat detail, katalog ro'yxatida yo'q) (BAJARILDI ✅) |
 
 ---
 
