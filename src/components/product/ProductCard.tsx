@@ -1,10 +1,12 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import type { Product } from '@/api/types';
+import type { Product, ProductVariant } from '@/api/types';
 import { formatPrice, t } from '@/lib/format';
 import { useCartStore } from '@/store/cartStore';
 import { useHaptic } from '@/hooks/useHaptic';
 import { useFavorite } from '@/hooks/useFavorite';
+import { BottomSheet } from '@/components/ui/BottomSheet';
 
 interface ProductCardProps {
   product: Product;
@@ -16,16 +18,31 @@ export function ProductCard({ product }: ProductCardProps) {
   const cartItems = useCartStore((s) => s.items);
   const haptic = useHaptic();
   const [added, setAdded] = useState(false);
+  const [variantSheetOpen, setVariantSheetOpen] = useState(false);
   const addedTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const { isFavorite, toggle: toggleFavorite } = useFavorite(product.id);
 
   const inCart = cartItems.some((i) => i.product_id === product.id);
+  // Memoised only so the `?? []` fallback doesn't hand `handleCartAction` a
+  // fresh array identity on every render.
+  const variants = useMemo(() => product.variants ?? [], [product.variants]);
 
   useEffect(() => {
     return () => {
       if (addedTimerRef.current) clearTimeout(addedTimerRef.current);
     };
   }, []);
+
+  const addToCart = useCallback(
+    (variant?: ProductVariant) => {
+      addItem(product, 1, variant);
+      haptic.impact('light');
+      setAdded(true);
+      if (addedTimerRef.current) clearTimeout(addedTimerRef.current);
+      addedTimerRef.current = setTimeout(() => setAdded(false), 1000);
+    },
+    [product, addItem, haptic],
+  );
 
   const handleCartAction = useCallback(
     (e: React.MouseEvent) => {
@@ -35,23 +52,28 @@ export function ProductCard({ product }: ProductCardProps) {
         navigate('/cart');
         return;
       }
-      if (product.variants && product.variants.length > 0) {
-        navigate(`/product/${product.slug}`);
+      // The API ships a `variants` array for practically every product, so
+      // bouncing to the product page whenever one exists meant the button
+      // never actually added anything. Only a real choice — two or more
+      // variants — earns an interruption, and it is answered here in a sheet
+      // rather than by leaving the screen the shopper is browsing.
+      if (variants.length > 1) {
+        haptic.selectionChanged();
+        setVariantSheetOpen(true);
         return;
       }
-      addItem(product, 1);
-      haptic.impact('light');
-      setAdded(true);
-      if (addedTimerRef.current) clearTimeout(addedTimerRef.current);
-      addedTimerRef.current = setTimeout(() => setAdded(false), 1000);
+      // `variants[0]` is `undefined` for a product with no variants, which is
+      // exactly the product-level line the cart stored before.
+      addToCart(variants[0]);
     },
-    [product, addItem, haptic, navigate, inCart],
+    [inCart, haptic, navigate, variants, addToCart],
   );
 
   const discountPercent = product.discount_percent || product.discount_percentage || 0;
   const hasOldPrice = !!(product.old_price || product.compare_price);
 
   return (
+    <>
     <div
       className="flex flex-col cursor-pointer overflow-hidden press-effect min-w-0 h-full storex-surface"
       onClick={() => {
@@ -199,5 +221,54 @@ export function ProductCard({ product }: ProductCardProps) {
         </div>
       </div>
     </div>
+
+    {/* Rendered into `document.body`, not inside the card: the card carries
+        `press-effect` and sits under Home's `page-enter` animation, and a
+        transformed ancestor would re-anchor this `fixed` sheet to the card
+        box. A portal also keeps taps inside the sheet from bubbling up the
+        React tree into the card's own "open product page" handler. */}
+    {variantSheetOpen &&
+      createPortal(
+        <BottomSheet
+          isOpen
+          onClose={() => setVariantSheetOpen(false)}
+          title="Turini tanlang"
+        >
+          <div className="flex flex-col gap-2">
+            {variants.map((v) => {
+              // Same rule cartStore.addItem bills on: the variant's own price
+              // when it has one, base + extra only as the fallback.
+              const price = v.price ?? product.price + (v.extra_price ?? 0);
+              return (
+                <button
+                  key={v.id}
+                  type="button"
+                  className="storex-card press-effect flex items-center justify-between gap-3 p-3 w-full text-left"
+                  style={{ border: '1.5px solid var(--storex-border)' }}
+                  onClick={() => {
+                    addToCart(v);
+                    setVariantSheetOpen(false);
+                  }}
+                >
+                  <span
+                    className="text-[15px] font-medium min-w-0 flex-1"
+                    style={{ color: 'var(--tg-theme-text-color)' }}
+                  >
+                    {v.name}
+                  </span>
+                  <span
+                    className="text-[14px] font-bold shrink-0"
+                    style={{ color: 'var(--tg-theme-text-color)' }}
+                  >
+                    {formatPrice(price)}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </BottomSheet>,
+        document.body,
+      )}
+    </>
   );
 }

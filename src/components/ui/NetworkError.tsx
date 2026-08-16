@@ -1,11 +1,21 @@
 interface NetworkErrorProps {
   onRetry: () => void;
+  /**
+   * `true` (default) owns the whole viewport — for screens that render their
+   * own root. Pass `false` inside a `PageLayout`, where the search bar and the
+   * TabBar must stay reachable: a full-height block there pushes the retry
+   * button under the fixed TabBar, leaving the shopper stuck on the screen
+   * that already failed.
+   */
+  fullScreen?: boolean;
 }
 
-export function NetworkError({ onRetry }: NetworkErrorProps) {
+export function NetworkError({ onRetry, fullScreen = true }: NetworkErrorProps) {
   return (
     <div
-      className="min-h-screen flex flex-col items-center justify-center px-6 text-center"
+      className={`flex flex-col items-center justify-center px-6 text-center ${
+        fullScreen ? 'min-h-screen' : 'min-h-[55vh] py-10'
+      }`}
       style={{ backgroundColor: 'var(--tg-theme-bg-color)' }}
     >
       <span className="text-5xl mb-4">📡</span>

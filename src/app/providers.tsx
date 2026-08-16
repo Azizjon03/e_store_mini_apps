@@ -10,7 +10,17 @@ const queryClient = new QueryClient({
     queries: {
       staleTime: 5 * 60 * 1000,     // 5 min
       gcTime: 30 * 60 * 1000,       // 30 min
-      retry: 1,
+      // Two attempts back-to-back were not enough for the first request a
+      // cold Telegram WebView makes: both landed inside the same connection
+      // hiccup and the screen was left with no data. Three attempts spread
+      // over ~3s survive that, while 4xx (a missing product, an expired
+      // token) still fails immediately instead of being retried pointlessly.
+      retry: (failureCount, error) => {
+        const status = (error as { response?: { status?: number } })?.response?.status;
+        if (status !== undefined && status >= 400 && status < 500) return false;
+        return failureCount < 3;
+      },
+      retryDelay: (attempt) => Math.min(500 * 2 ** attempt, 4000),
       refetchOnWindowFocus: false,
     },
   },
