@@ -14,7 +14,7 @@
 | 4 — Dizayn tizimi | ✅ Bajarildi (ko'z bilan tekshirilmagan) | frontend branchida |
 | 5 — Redizayn | 🔸 5 ekrandan 1 tasi (Home) | frontend branchida |
 
-**Tekshiruv:** frontend `lint` + `build` toza · backend `php artisan test` → **583 test o'tdi, 1976 assertion** (bitta jarayonda, ketma-ket) · uchidan-uchiga kontrakt testi lokal API'da o'tdi.
+**Tekshiruv:** frontend `lint` + `build` toza · backend `php artisan test` → **618 test o'tdi, 2107 assertion** (bitta jarayonda, ketma-ket; parallel ishga tushirish bitta test bazasini bo'lishgani uchun qarama-qarshi natija beradi) · **brauzerda uchta QA to'lqini**: 360×640 da to'liq sotib olish yo'li, keyin 1440/1024/768/600/480 kengliklarida ustun tekshiruvi, yorug' va qorong'i temada. Ikkita buyurtma uchidan-uchiga yaratildi va checkout summasi buyurtma summasiga aynan teng chiqdi.
 
 **PR ochildi, merge qilinmadi:** frontend [#3](https://github.com/Azizjon03/e_store_mini_apps/pull/3) · backend [#26](https://github.com/Azizjon03/e_store_back/pull/26). Backend avval merge qilinishi kerak — frontend tuzatishlarining bir qismi shu branch qo'shgan maydonlarni o'qiydi. `main` ga merge avtomatik prodakshnga chiqaradi.
 
@@ -39,15 +39,25 @@ Barcha P0 · P1-1..P1-6 · P2-1..P2-10 · P3-1, P3-2, P3-4, P3-6, P3-7 · R-1, R
 | `product.rating` o'lik — API `reviews_avg_rating` yuboradi | ✅ Tuzatildi |
 | Home `withAggregates()` ni chetlab o'tardi — `in_stock` doim `true` | ✅ Tuzatildi |
 | `POST /cart/promo` promo kodni hech qayerga yozmasdi | ✅ Tuzatildi |
+| Yangi mijoz manzil yarata olmasdi — `lat`/`lng` majburiy, formada xarita yo'q. Manzilsiz checkout bloklangan | ✅ Tuzatildi |
+| Kategoriya plitkalarining yuqori qatori bosilmasdi — ko'rinmas pull-to-refresh qatlami ustida turgan | ✅ Tuzatildi |
+| Yopishqoq sarlavhalar yopishmasdi — `overflow-x: hidden` ajdodni aylantirish konteyneriga aylantiradi | ✅ Tuzatildi |
+| Manzilni o'chirish brauzerda ishlamasdi — `showConfirm` fallback'i doim `false` | ✅ Tuzatildi |
+| Promo-kod hech qachon qo'llanmasdi va xato xabari yolg'on edi | ✅ Tuzatildi |
+| Narx maydonlari API'da satr (`"14990000.00"`) — JS'da `+` konkatenatsiyaga aylanadi | ✅ Tuzatildi |
+| Noma'lum mahsulot slug'i 404 emas, 500 qaytarardi | ✅ Tuzatildi |
+| Kompyuterda ilova butun ekranga cho'zilardi, Profile esa tor ustun edi | ✅ Tuzatildi (480px ustun) |
 | ProductCard sevimlilar tugmasi 28px — 48px tap-target minimumidan past | ⏸ Dizayn qarori |
 | Variant `id` — massiv indeksi, mahsulot tahrirlansa siljiydi | ⏸ Checkout `name` bo'yicha hal qilgani uchun narx xavfi yo'q |
 | `ManagerAuthService` va admin `UserController` telefonni `AuthService` orqali o'tkazmaydi | ⏸ Ochiq |
+| Admin JSON API `/{company}/products/{product}` — Laravel pozitsion bog'lash tufayli `$id` ga kompaniya id'si tushadi | ⏸ Storefront'ga tegmaydi, alohida ish |
 
 ### Hali qilinmagan
 
-- **Qurilmada ko'z bilan tekshirish** — hech qachon qilinmadi. Lokal API `X-Company-Id` header talab qiladi, frontend uni yubormaydi.
+- **Haqiqiy Telegram klientida tekshirish** — QA oddiy brauzerda haydaldi, `--tg-theme-*` palitrasi qo'lda kiritilgan holda. Telegram WebView'ining o'z xatti-harakati (native back tugmasi, haptika, tema almashuvi) sinalmagan.
 - **5-bosqich: qolgan 4 ekran redizayni** — ProductDetail → Cart → Checkout → Catalog.
-- **`DESIGN_STANDARD.md` §6 ziddiyati** — standart 56px dumaloq kategoriya ikonkasini belgilaydi, kod 48px squircle. Uchinchi qiymat kiritmaslik uchun ataylab tegilmadi.
+- **`DESIGN_STANDARD.md` §6 ziddiyati** — standart 56px dumaloq kategoriya ikonkasini belgilaydi, kod fold ishidan keyin 44px squircle. Uchinchi qiymat kiritmaslik uchun ataylab tegilmadi.
+- **Demo ma'lumotida mahsulot rasmlari umuman yo'q** — 33 tadan 0 tasi. Bu kod nuqsoni emas, lekin har qanday dizayn taklifi maketda haqiqatdan chiroyliroq ko'rinishiga sabab bo'ladi.
 
 ---
 
