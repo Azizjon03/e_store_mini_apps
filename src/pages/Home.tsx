@@ -11,6 +11,7 @@ import { ProductGrid } from '@/components/product/ProductGrid';
 import { Skeleton, ProductCardSkeleton } from '@/components/ui/Skeleton';
 import { PullToRefresh } from '@/components/ui/PullToRefresh';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { NetworkError } from '@/components/ui/NetworkError';
 
 // Same section->link mapping HomeSections.tsx uses internally. Duplicated
 // (not imported) rather than exported cross-file, since a shared non-component
@@ -113,7 +114,7 @@ function WelcomeBlock() {
 
 export default function Home() {
   const queryClient = useQueryClient();
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['home'],
     queryFn: getHomeData,
   });
@@ -143,6 +144,20 @@ export default function Home() {
 
   const firstSection = hasSections ? data!.sections[0] : undefined;
   const remainingSections = hasSections ? data!.sections.slice(1) : [];
+
+  // A failed GET /home used to fall through to the `!data` branch below and
+  // leave HomeSkeleton on screen indefinitely: the query does not refetch on
+  // its own (refetchOnWindowFocus is off globally) and nothing told the
+  // shopper anything, so the first screen of the app stayed blank until the
+  // page happened to remount — which is why it "appeared after opening the
+  // dashboard a second time". Say what happened and give them the retry.
+  if (isError && !data) {
+    return (
+      <PageLayout>
+        <NetworkError fullScreen={false} onRetry={() => refetch()} />
+      </PageLayout>
+    );
+  }
 
   return (
     <PageLayout>
