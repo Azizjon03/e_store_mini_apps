@@ -126,9 +126,13 @@ purely through Telegram flipping `--tg-theme-*` to dark values. Consequences:
 - Any surface painted with a literal white — including `storex-card`'s use of
   `--tg-theme-bg-color`, `storex-glass`'s `rgba(255,255,255,…)`, and the `#fff` text
   on primary buttons — must be checked against a dark background.
-- `--storex-border` is `rgba(0,0,0,0.08)` — effectively invisible on a dark surface.
-  A design that relies on hairline borders for structure will lose its structure in
-  dark mode. Prefer tonal shifts (`--tg-theme-secondary-bg-color`) for separation.
+- `--storex-border` is **theme-relative**, not a fixed black:
+  `color-mix(in srgb, var(--tg-theme-text-color) 12%, transparent)` (`global.css:38`),
+  and `--storex-border-card` follows the same construction at 10%. Hairline borders
+  therefore survive a dark palette — the variant chips on the product detail page
+  were verified against a dark Telegram palette and keep their outlines. (This
+  entry previously claimed the token was a hardcoded `rgba(0,0,0,0.08)`; that was
+  stale. Trust `global.css`, not this file, if they ever disagree again.)
 
 ## Animation
 
@@ -161,7 +165,18 @@ Facts worth knowing up front:
   list of named options, *not* a type/value matrix. There is no colour value and
   no per-variant attribute map, so a swatch picker or a spec table that changes
   with the selection cannot be built from this data. `id` is the variant's
-  0-based index, so it must never be tested for truthiness.
+  0-based index, so it must never be tested for truthiness. Variant names in this
+  catalogue are long (`"256GB Natural Titanium"` ≈ 190px as a chip), so a wrapping
+  chip cloud costs ~50px *per variant*; the product detail page uses a single
+  horizontally-scrolling rail instead, which is flat ~52px at any variant count.
+- **The product detail endpoint returns almost the same resource as the list.**
+  `GET /products/{slug}` additionally inlines `brand` (whose `name` is a **plain
+  string**, unlike every other name in the API), `category` (localized), `tags`,
+  and — since 2026-08-16 — up to the 3 newest approved `reviews`. It does **not**
+  send `full_description` or `similar_products`; those were declared in `types.ts`
+  for a long time while the backend never sent them, which is exactly the class of
+  bug this document exists to prevent. Treat a declared field as real only after
+  seeing it in a live response.
 - `HomeData` = `banners`, optional `banners_mid`, `categories`, `sections`,
   optional `flash_sale`. The home page's structure is largely server-driven.
 - `StoreConfig` (`GET /init`) supplies branding, `delivery_info`
@@ -216,10 +231,16 @@ affected area rather than treating as out of scope:
 3. `useMainButton` has no consumers. Telegram's MainButton did not render
    reliably, so every screen uses `SubmitBar` instead. Do not design a screen
    whose primary action lives on the native button.
-4. The demo dataset has **no product images at all** and the seeded attribute
-   values are near-unique free text (`6.8" Dynamic AMOLED 2X`). A concept that
-   depends on photography or on tidy facets will look far better in the mockup
-   than in this store.
+4. The **running demo database has no product images at all** — `GET /products/{slug}`
+   returns `images: []`, `image: null`, `thumbnail: null` for every product
+   (verified 2026-08-16 against the live local API). Note the seeder
+   (`ProductSeeder.php`) *does* generate picsum URLs, so the empty state is stale
+   data, not the design target: a concept must look right **both** ways, and one
+   that only looks good on the empty dataset is overfitting. The seeded attribute
+   values are also near-unique free text (`6.8" Dynamic AMOLED 2X`), so tidy
+   facets will look better in the mockup than in this store — though the
+   *display* table (`attributes`) is clean, e.g. `{RAM: "8GB", Ekran: "6.7\"
+   Super Retina XDR"}`.
 5. `Favorites` and `AddressForm` still use raw emoji as controls (🗑 ✏️) while
    the rest of the app uses inline SVG, and `AddressForm` has no header or back
    control outside Telegram.

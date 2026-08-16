@@ -37,6 +37,20 @@ export interface Category {
   color?: string;
 }
 
+// Brand — inlined on the product detail response alongside `brand_id`.
+// Confirmed against the live API (GET /products/{slug}): unlike Category.name
+// and Product.name, `name` here is a **plain string** ("Apple"), not a
+// LocalizedString — the backend's BrandResource doesn't localize it. A
+// product with a null `brand_id` still returns a `brand` object with
+// all-null fields, so callers must guard on `brand?.name`, not just `brand`.
+export interface Brand {
+  id: number;
+  name: string;
+  slug: string;
+  logo: string | null;
+  website?: string;
+}
+
 // Products
 // A variant as the backend actually stores it: `{name, sku, price}` on the
 // product's own JSON column, plus two fields ProductResource computes.
@@ -98,10 +112,20 @@ export interface Review {
 }
 
 export interface ProductDetail extends Product {
-  full_description: string;
+  // Declared as required until 2026-08-16, but GET /products/{slug} never
+  // actually sends any of the three — confirmed against the live API. A
+  // consumer written against the old (wrong) required types crashed on
+  // `product.reviews.length`; all three must be treated as absent.
+  full_description?: string;
   attributes: Record<string, string>;
-  similar_products: Product[];
-  reviews: Review[];
+  similar_products?: Product[];
+  reviews?: Review[];
+  // Present on GET /products/{slug} (confirmed against the live API) but not
+  // declared on the base `Product` — list endpoints (catalog/search/home)
+  // are only confirmed to send the `*_id` fields, not the inlined objects.
+  brand?: Brand;
+  category?: Category;
+  tags?: string[];
 }
 
 // Cart
