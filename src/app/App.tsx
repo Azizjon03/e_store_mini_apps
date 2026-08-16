@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type ReactNode } from 'react';
 import { Outlet } from 'react-router-dom';
 import { initTelegram } from '@/lib/telegram';
 import { useAuthStore } from '@/store/authStore';
@@ -6,6 +6,45 @@ import { useAppStore } from '@/store/appStore';
 import { useBackButton } from '@/hooks/useBackButton';
 import { getStoreConfig } from '@/api/storefront';
 import { me } from '@/api/auth';
+
+/**
+ * The phone-shaped column every route renders into.
+ *
+ * This lives here, above the router's `Outlet`, rather than in `PageLayout`:
+ * eight screens (Checkout, Login, Register, Search, OrderSuccess,
+ * ProductDetail, Addresses, AddressForm) render their own root instead of
+ * going through `PageLayout`, so a constraint applied there would leave them
+ * stretched edge to edge on a desktop window while the rest of the app sat in
+ * a column. `fixed` chrome — TabBar, SubmitBar, BottomSheet — escapes this
+ * wrapper by definition and carries the same max-width itself.
+ *
+ * Below 480px the column resolves to 100%, so the layout inside Telegram is
+ * untouched and the surrounding surface never becomes visible.
+ */
+function AppShell({ children }: { children: ReactNode }) {
+  return (
+    <div
+      className="min-h-screen flex justify-center"
+      style={{ backgroundColor: 'var(--tg-theme-secondary-bg-color)' }}
+    >
+      <div
+        className="w-full max-w-(--storex-app-max-width)"
+        style={{
+          backgroundColor: 'var(--tg-theme-bg-color)',
+          // Hairlines down the two long edges rather than a border, so the
+          // column keeps its exact width and nothing shifts. Three screens
+          // (Profile, product detail, order detail) paint their own background
+          // in the same token as the surround, so without this the column has
+          // no visible edge on them at all.
+          boxShadow:
+            '1px 0 0 color-mix(in srgb, var(--tg-theme-text-color) 12%, transparent), -1px 0 0 color-mix(in srgb, var(--tg-theme-text-color) 12%, transparent)',
+        }}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
 
 function WelcomeScreen({ onEnter }: { onEnter: () => void }) {
   return (
@@ -97,8 +136,16 @@ export function App() {
   useBackButton();
 
   if (!entered) {
-    return <WelcomeScreen onEnter={() => setEntered(true)} />;
+    return (
+      <AppShell>
+        <WelcomeScreen onEnter={() => setEntered(true)} />
+      </AppShell>
+    );
   }
 
-  return <Outlet />;
+  return (
+    <AppShell>
+      <Outlet />
+    </AppShell>
+  );
 }

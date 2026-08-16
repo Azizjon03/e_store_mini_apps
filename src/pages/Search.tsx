@@ -1,17 +1,20 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
 import { searchProducts, getPopularSearches, getSearchSuggestions } from '@/api/storefront';
 import { useAppStore } from '@/store/appStore';
 import { useHaptic } from '@/hooks/useHaptic';
-import { ProductCard } from '@/components/product/ProductCard';
-import { ProductCardSkeleton } from '@/components/ui/Skeleton';
+import { useDebounce } from '@/hooks/useDebounce';
+import { ProductGrid } from '@/components/product/ProductGrid';
+import { Chip } from '@/components/ui/Chip';
+import { EmptyState } from '@/components/ui/EmptyState';
 
 export default function Search() {
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
-  const [debouncedQuery, setDebouncedQuery] = useState('');
+  const debouncedQuery = useDebounce(query.trim(), 300);
   const inputRef = useRef<HTMLInputElement>(null);
+  const loaderRef = useRef<HTMLDivElement>(null);
   const haptic = useHaptic();
 
   const searchHistory = useAppStore((s) => s.searchHistory);
@@ -24,18 +27,21 @@ export default function Search() {
     inputRef.current?.focus();
   }, []);
 
-  // Debounce 300ms
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedQuery(query.trim());
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [query]);
-
-  // Search results
-  const { data: results, isLoading: isSearching } = useQuery({
+  // Search results (infinite scroll — mirrors useInfiniteProducts' pagination logic)
+  const {
+    data: results,
+    isLoading: isSearching,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteQuery({
     queryKey: ['search', debouncedQuery],
-    queryFn: () => searchProducts(debouncedQuery),
+    queryFn: ({ pageParam }) => searchProducts(debouncedQuery, pageParam),
+    getNextPageParam: (lastPage) => {
+      const { current_page, last_page } = lastPage.meta;
+      return current_page < last_page ? current_page + 1 : undefined;
+    },
+    initialPageParam: 1,
     enabled: debouncedQuery.length >= 2,
   });
 
@@ -52,32 +58,72 @@ export default function Search() {
     enabled: debouncedQuery.length >= 2 && debouncedQuery.length <= 30,
   });
 
-  // Save to history on search
+  // Record history on an *intentional* search — submitting the typed query
+  // (Enter) or tapping a suggestion/popular/history term — not on every
+  // debounce tick that happens to return results. The debounced value updates
+  // on every 300ms pause, so keying off it (the old behaviour) recorded
+  // "sa", "sam", "sams"... while the user was still typing "samsung".
+  const commitSearch = useCallback(
+    (term: string) => {
+      const trimmed = term.trim();
+      if (trimmed.length >= 2) {
+        addSearchHistory(trimmed);
+      }
+    },
+    [addSearchHistory],
+  );
+
+  // Infinite scroll: load the next page when the sentinel enters the viewport
   useEffect(() => {
-    if (debouncedQuery.length >= 2 && results && results.data.length > 0) {
-      addSearchHistory(debouncedQuery);
-    }
-  }, [debouncedQuery, results, addSearchHistory]);
+    const el = loaderRef.current;
+    if (!el) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
+          fetchNextPage();
+        }
+      },
+      { threshold: 0.1 },
+    );
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   const handlePopularClick = useCallback(
     (term: string) => {
       haptic.selectionChanged();
+      commitSearch(term);
       setQuery(term);
     },
-    [haptic],
+    [haptic, commitSearch],
   );
 
   const handleHistoryClick = useCallback(
     (term: string) => {
       haptic.selectionChanged();
+      commitSearch(term);
       setQuery(term);
     },
-    [haptic],
+    [haptic, commitSearch],
+  );
+
+  const handleInputKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        commitSearch(query);
+        inputRef.current?.blur();
+      }
+    },
+    [commitSearch, query],
   );
 
   const showEmptyState = debouncedQuery.length < 2;
   const showResults = debouncedQuery.length >= 2;
-  const products = results?.data ?? [];
+  const products = results?.pages.flatMap((p) => p.data) ?? [];
+  const total = results?.pages[0]?.meta.total ?? products.length;
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: 'var(--tg-theme-bg-color)' }}>
@@ -116,6 +162,7 @@ export default function Search() {
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={handleInputKeyDown}
             placeholder="Qidirish..."
             className="flex-1 bg-transparent outline-none text-[15px]"
             style={{ color: 'var(--tg-theme-text-color)' }}
@@ -211,22 +258,18 @@ export default function Search() {
                 className="text-[15px] font-semibold mb-3"
                 style={{ color: 'var(--tg-theme-text-color)' }}
               >
-                Mashxur qidiruvlar
+                Mashhur qidiruvlar
               </p>
               <div className="flex gap-2 flex-wrap">
                 {popularSearches.map((term) => (
-                  <button
+                  <Chip
                     key={term}
-                    className="storex-chip press-effect"
-                    style={{
-                      backgroundColor: 'var(--storex-primary-light)',
-                      borderColor: 'transparent',
-                      color: 'var(--storex-primary)',
-                    }}
+                    active
+                    className="press-effect"
                     onClick={() => handlePopularClick(term)}
                   >
                     {term}
-                  </button>
+                  </Chip>
                 ))}
               </div>
             </div>
@@ -244,6 +287,7 @@ export default function Search() {
               style={{ borderBottom: '1px solid var(--storex-border)' }}
               onClick={() => {
                 haptic.selectionChanged();
+                commitSearch(suggestion);
                 setQuery(suggestion);
               }}
             >
@@ -260,43 +304,42 @@ export default function Search() {
 
       {/* Search results */}
       {showResults && (
-        <div className="px-4">
+        <>
           {isSearching ? (
-            <div className="grid grid-cols-2 gap-3 py-4">
-              {Array.from({ length: 4 }, (_, i) => (
-                <ProductCardSkeleton key={i} />
-              ))}
+            <div className="py-4">
+              <ProductGrid products={[]} isLoading skeletonCount={4} />
             </div>
           ) : products.length > 0 ? (
             <>
               <p
-                className="text-[13px] pt-4 pb-3"
+                className="text-[13px] px-4 pt-4 pb-3"
                 style={{ color: 'var(--tg-theme-hint-color)' }}
               >
-                {results?.meta.total ?? products.length} ta natija
+                {total} ta natija
               </p>
-              <div className="grid grid-cols-2 gap-3 pb-6">
-                {products.map((product) => (
-                  <ProductCard key={product.id} product={product} />
-                ))}
+              {/* Engaging with a result is the most common intent signal on mobile —
+                  most shoppers tap a card rather than pressing Enter first. */}
+              <div className="pb-6" onClickCapture={() => commitSearch(query)}>
+                <ProductGrid products={products} />
+              </div>
+              <div ref={loaderRef} className="pb-6">
+                {isFetchingNextPage && <ProductGrid products={[]} isLoading skeletonCount={2} />}
               </div>
             </>
           ) : (
-            <div className="flex flex-col items-center justify-center py-20 text-center">
-              <svg width="48" height="48" viewBox="0 0 48 48" fill="none" className="mb-4" style={{ color: 'var(--tg-theme-hint-color)' }}>
-                <circle cx="20" cy="20" r="14" stroke="currentColor" strokeWidth="2.5" />
-                <path d="M30 30l12 12" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
-                <path d="M14 20h12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-              </svg>
-              <p className="text-[17px] font-semibold mb-1" style={{ color: 'var(--tg-theme-text-color)' }}>
-                Hech narsa topilmadi
-              </p>
-              <p className="text-[13px]" style={{ color: 'var(--tg-theme-hint-color)' }}>
-                "{debouncedQuery}" bo'yicha natija yo'q. Boshqa so'z bilan qidirib ko'ring.
-              </p>
-            </div>
+            <EmptyState
+              icon={
+                <svg width="48" height="48" viewBox="0 0 48 48" fill="none" style={{ color: 'var(--tg-theme-hint-color)' }}>
+                  <circle cx="20" cy="20" r="14" stroke="currentColor" strokeWidth="2.5" />
+                  <path d="M30 30l12 12" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+                  <path d="M14 20h12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                </svg>
+              }
+              title="Hech narsa topilmadi"
+              description={`"${debouncedQuery}" bo'yicha natija yo'q. Boshqa so'z bilan qidirib ko'ring.`}
+            />
           )}
-        </div>
+        </>
       )}
     </div>
   );

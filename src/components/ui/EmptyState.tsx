@@ -1,5 +1,8 @@
+import type { ReactNode } from 'react';
+
 interface EmptyStateProps {
-  icon: string;
+  /** Emoji string (most call sites) or a custom inline SVG node. */
+  icon: ReactNode;
   title: string;
   description?: string;
   action?: {

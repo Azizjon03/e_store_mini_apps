@@ -6,6 +6,7 @@ import { useHaptic } from '@/hooks/useHaptic';
 import { PageLayout } from '@/components/layout/PageLayout';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { SubmitBar } from '@/components/ui/SubmitBar';
+import { QuantityStepper } from '@/components/ui/QuantityStepper';
 import { formatPrice, t } from '@/lib/format';
 import { applyPromoCode, removePromoCode as removePromoApi, getCart } from '@/api/storefront';
 import { useAuthStore } from '@/store/authStore';
@@ -34,15 +35,27 @@ export default function Cart() {
   const [promoMessage, setPromoMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const promoMutation = useMutation({
-    mutationFn: (code: string) => applyPromoCode(code),
+    // The cart is client-side until checkout, so the *server* cart is still
+    // empty while the customer is browsing. Without an explicit amount the
+    // backend validates the code against that empty cart and rejects every
+    // code with "Minimal buyurtma summasi: …" — pass the local goods subtotal
+    // (before discount and delivery) so it validates what the customer has.
+    mutationFn: (code: string) => applyPromoCode(code, subtotal()),
     onSuccess: (data) => {
       setPromoCode(data.promo.code, data.promo.discount_amount);
       setPromoMessage({ type: 'success', text: `Chegirma qo'llandi: -${data.promo.discount_percent}%` });
       setPromoInput('');
       haptic.notification('success');
     },
-    onError: () => {
-      setPromoMessage({ type: 'error', text: 'Promo-kod noto\'g\'ri yoki muddati o\'tgan' });
+    onError: (err: unknown) => {
+      // A local onError suppresses the global MutationCache toast, so this is
+      // the only message the shopper gets. The server explains *why* it
+      // refused (minimum amount, expired, already used); the generic line
+      // claimed the code was invalid, which was wrong in every observed case.
+      const message =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
+        "Promo-kod noto'g'ri yoki muddati o'tgan";
+      setPromoMessage({ type: 'error', text: message });
       haptic.notification('error');
     },
   });
@@ -99,12 +112,12 @@ export default function Cart() {
               }}
             >
               <div
-                className="w-18 h-18 shrink-0 overflow-hidden cursor-pointer"
+                className={`w-18 h-18 shrink-0 overflow-hidden ${item.product.slug ? 'cursor-pointer' : ''}`}
                 style={{
                   backgroundColor: 'var(--tg-theme-secondary-bg-color)',
                   borderRadius: 'var(--storex-radius-sm)',
                 }}
-                onClick={() => navigate(`/product/${item.product.slug}`)}
+                onClick={item.product.slug ? () => navigate(`/product/${item.product.slug}`) : undefined}
               >
                 {item.product.image ? (
                   <img src={item.product.image} alt={t(item.product.name)} className="w-full h-full object-cover" />
@@ -119,9 +132,9 @@ export default function Cart() {
 
               <div className="flex-1 min-w-0 flex flex-col">
                 <p
-                  className="text-[13px] font-medium line-clamp-2 cursor-pointer leading-tight"
+                  className={`text-[13px] font-medium line-clamp-2 leading-tight ${item.product.slug ? 'cursor-pointer' : ''}`}
                   style={{ color: 'var(--tg-theme-text-color)' }}
-                  onClick={() => navigate(`/product/${item.product.slug}`)}
+                  onClick={item.product.slug ? () => navigate(`/product/${item.product.slug}`) : undefined}
                 >
                   {t(item.product.name)}
                 </p>
@@ -135,46 +148,18 @@ export default function Cart() {
                 </p>
 
                 <div className="flex items-center gap-2 mt-2">
-                  {/* Quantity controls */}
-                  <div
-                    className="flex items-center overflow-hidden"
-                    style={{
-                      borderRadius: 'var(--storex-radius-sm)',
-                      border: '1px solid var(--storex-border)',
+                  <QuantityStepper
+                    value={item.quantity}
+                    removeAtMin
+                    onDecrement={() => {
+                      haptic.impact('light');
+                      updateQuantity(item.id, item.quantity - 1);
                     }}
-                  >
-                    <button
-                      className="w-8 h-7 flex items-center justify-center text-sm font-bold active:opacity-60"
-                      style={{ color: item.quantity === 1 ? 'var(--storex-danger)' : 'var(--storex-primary)' }}
-                      onClick={() => {
-                        haptic.impact('light');
-                        updateQuantity(item.id, item.quantity - 1);
-                      }}
-                    >
-                      {item.quantity === 1 ? (
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <polyline points="3 6 5 6 21 6" />
-                          <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
-                        </svg>
-                      ) : '−'}
-                    </button>
-                    <span
-                      className="w-7 text-center text-sm font-semibold"
-                      style={{ color: 'var(--tg-theme-text-color)' }}
-                    >
-                      {item.quantity}
-                    </span>
-                    <button
-                      className="w-8 h-7 flex items-center justify-center text-sm font-bold active:opacity-60"
-                      style={{ color: 'var(--storex-primary)' }}
-                      onClick={() => {
-                        haptic.impact('light');
-                        updateQuantity(item.id, item.quantity + 1);
-                      }}
-                    >
-                      +
-                    </button>
-                  </div>
+                    onIncrement={() => {
+                      haptic.impact('light');
+                      updateQuantity(item.id, item.quantity + 1);
+                    }}
+                  />
                 </div>
               </div>
             </div>

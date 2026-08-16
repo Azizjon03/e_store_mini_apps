@@ -1,63 +1,132 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getOrders, reorderProducts } from '@/api/storefront';
+import { useInfiniteQuery } from '@tanstack/react-query';
+import { getOrders } from '@/api/storefront';
 import { PageLayout } from '@/components/layout/PageLayout';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Skeleton } from '@/components/ui/Skeleton';
+import { Chip } from '@/components/ui/Chip';
 import { formatPrice, formatDate } from '@/lib/format';
 import { useHaptic } from '@/hooks/useHaptic';
 import { showToast } from '@/lib/toast';
-import type { OrderStatus } from '@/api/types';
+import { useCartStore, makeItemId } from '@/store/cartStore';
+import type { CartItem, Order, OrderStatus } from '@/api/types';
 
 const STATUS_CONFIG: Record<OrderStatus, { label: string; color: string }> = {
   pending: { label: 'Yangi', color: 'var(--storex-warning)' },
   confirmed: { label: 'Tasdiqlangan', color: 'var(--storex-info)' },
   processing: { label: 'Tayyorlanmoqda', color: 'var(--storex-info)' },
-  delivering: { label: "Yo'lda", color: 'var(--storex-primary)' },
+  shipped: { label: "Yo'lda", color: 'var(--storex-primary)' },
   delivered: { label: 'Yetkazildi', color: 'var(--storex-success)' },
   cancelled: { label: 'Bekor qilingan', color: 'var(--storex-danger)' },
-  returned: { label: 'Qaytarildi', color: 'var(--tg-theme-hint-color)' },
+  refunded: { label: 'Qaytarildi', color: 'var(--tg-theme-hint-color)' },
 };
+
+// Defensive fallback: the backend enum can grow without the frontend knowing,
+// so an unrecognized status must never crash the page (see getStatusConfig).
+const UNKNOWN_STATUS_CONFIG = { label: 'Nomaʼlum holat', color: 'var(--tg-theme-hint-color)' };
+
+function getStatusConfig(status: OrderStatus) {
+  return STATUS_CONFIG[status] ?? UNKNOWN_STATUS_CONFIG;
+}
 
 const FILTER_TABS: { label: string; value: string }[] = [
   { label: 'Hammasi', value: 'all' },
   { label: 'Yangi', value: 'pending' },
   { label: 'Tayyorlanmoqda', value: 'processing' },
-  { label: "Yo'lda", value: 'delivering' },
+  { label: "Yo'lda", value: 'shipped' },
   { label: 'Yetkazildi', value: 'delivered' },
   { label: 'Bekor qilingan', value: 'cancelled' },
 ];
 
+// Reorder is filled purely client-side from the order's own items — the
+// server's /orders/{id}/reorder cart gets wiped by checkout's clearCart()
+// sync anyway, so trusting that round-trip never actually worked. Historical
+// item.price is used (not live product price) since that's the only price
+// this stub data carries, and it faithfully reproduces what the order shows.
+function addOrderItemsToCart(order: Order) {
+  const newItems: CartItem[] = order.items.map((item) => ({
+    id: makeItemId(item.product_id, item.variant?.id),
+    product_id: item.product_id,
+    product: item.product,
+    quantity: item.quantity,
+    variant: item.variant,
+    price: item.price,
+  }));
+
+  useCartStore.getState().mergeItems(newItems);
+}
+
 export default function Orders() {
   const navigate = useNavigate();
   const haptic = useHaptic();
-  const queryClient = useQueryClient();
   const [activeFilter, setActiveFilter] = useState('all');
+  const loaderRef = useRef<HTMLDivElement>(null);
 
-  const { data, isLoading } = useQuery({
+  // Infinite scroll, same pagination pattern as useInfiniteProducts: each
+  // filter keeps its own query key/cache so switching tabs doesn't refetch
+  // pages already loaded for a previously active filter.
+  const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
     queryKey: ['orders', activeFilter],
-    queryFn: () => getOrders(1, activeFilter),
+    queryFn: ({ pageParam }) => getOrders(pageParam, activeFilter),
+    getNextPageParam: (lastPage) => {
+      const { current_page, last_page } = lastPage.meta;
+      return current_page < last_page ? current_page + 1 : undefined;
+    },
+    initialPageParam: 1,
   });
 
-  const reorderMutation = useMutation({
-    mutationFn: (orderId: number) => reorderProducts(orderId),
-    onSuccess: () => {
-      haptic.notification('success');
-      showToast('success', "Mahsulotlar savatga qo'shildi");
-      queryClient.invalidateQueries({ queryKey: ['cart'] });
-      navigate('/cart');
-    },
-    onError: () => {
-      showToast('error', 'Xatolik yuz berdi');
-      haptic.notification('error');
-    },
-  });
+  useEffect(() => {
+    const el = loaderRef.current;
+    if (!el) return;
 
-  const orders = data?.data ?? [];
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
+          fetchNextPage();
+        }
+      },
+      { threshold: 0.1 },
+    );
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  const handleReorder = (order: Order) => {
+    addOrderItemsToCart(order);
+    haptic.notification('success');
+    showToast('success', "Mahsulotlar savatga qo'shildi");
+    navigate('/cart');
+  };
+
+  const orders = data?.pages.flatMap((p) => p.data) ?? [];
 
   return (
     <PageLayout showSearch={false}>
+      {/* Header — every other screen has a title + back control; this one
+          is reached from Profile's "Buyurtmalarim" link and previously
+          dropped straight into the filter chips with no way back except the
+          tab bar. */}
+      <div
+        className="px-4 py-4 flex items-center gap-3"
+        style={{ backgroundColor: 'var(--tg-theme-bg-color)' }}
+      >
+        <button
+          aria-label="Orqaga"
+          className="shrink-0 w-9 h-9 flex items-center justify-center press-effect"
+          onClick={() => navigate(-1)}
+          style={{ color: 'var(--tg-theme-text-color)' }}
+        >
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+            <path d="M12.5 15l-5-5 5-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+        <h1 className="text-[17px] font-bold" style={{ color: 'var(--tg-theme-text-color)' }}>
+          Buyurtmalar
+        </h1>
+      </div>
+
       {/* Status filter tabs */}
       <div
         className="sticky top-0 z-20 px-4 py-2 overflow-x-auto scrollbar-hide"
@@ -65,16 +134,16 @@ export default function Orders() {
       >
         <div className="flex gap-2">
           {FILTER_TABS.map((tab) => (
-            <button
+            <Chip
               key={tab.value}
-              className={`storex-chip ${activeFilter === tab.value ? 'active' : ''}`}
+              active={activeFilter === tab.value}
               onClick={() => {
                 setActiveFilter(tab.value);
                 haptic.selectionChanged();
               }}
             >
               {tab.label}
-            </button>
+            </Chip>
           ))}
         </div>
       </div>
@@ -87,7 +156,7 @@ export default function Orders() {
         </div>
       ) : orders.length === 0 ? (
         <EmptyState
-          icon="---"
+          icon="🧾"
           title="Buyurtmalar yo'q"
           description={activeFilter === 'all' ? "Birinchi buyurtmangizni bering!" : "Bu bo'limda buyurtmalar yo'q"}
           action={{ label: "Katalogga o'tish", onClick: () => navigate('/catalog') }}
@@ -95,7 +164,7 @@ export default function Orders() {
       ) : (
         <div className="px-4 py-3 flex flex-col gap-3">
           {orders.map((order) => {
-            const status = STATUS_CONFIG[order.status];
+            const status = getStatusConfig(order.status);
             return (
               <div
                 key={order.id}
@@ -123,28 +192,41 @@ export default function Orders() {
                   </p>
                 </div>
 
-                {/* Product thumbnails */}
+                {/* Product thumbnails — prefer the smaller `thumbnail` snapshot
+                    field over the full-size `image` when the backend sent
+                    one, and never load more than the 48x48 box needs. */}
                 <div className="px-4 py-2 flex items-center gap-1.5">
-                  {order.items.slice(0, 4).map((item) => (
-                    <div
-                      key={item.id}
-                      className="w-12 h-12 overflow-hidden shrink-0"
-                      style={{
-                        borderRadius: 'var(--storex-radius-sm)',
-                        backgroundColor: 'var(--tg-theme-secondary-bg-color)',
-                      }}
-                    >
-                      {item.product.image ? (
-                        <img src={item.product.image} alt="" className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center">
-                          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ color: 'var(--tg-theme-hint-color)' }}>
-                            <rect x="1" y="1" width="14" height="14" rx="2" stroke="currentColor" strokeWidth="1.2" />
-                          </svg>
-                        </div>
-                      )}
-                    </div>
-                  ))}
+                  {order.items.slice(0, 4).map((item) => {
+                    const thumbnailSrc = item.product.thumbnail || item.product.image;
+                    return (
+                      <div
+                        key={item.id}
+                        className="w-12 h-12 overflow-hidden shrink-0"
+                        style={{
+                          borderRadius: 'var(--storex-radius-sm)',
+                          backgroundColor: 'var(--tg-theme-secondary-bg-color)',
+                        }}
+                      >
+                        {thumbnailSrc ? (
+                          <img
+                            src={thumbnailSrc}
+                            alt=""
+                            width={48}
+                            height={48}
+                            loading="lazy"
+                            decoding="async"
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ color: 'var(--tg-theme-hint-color)' }}>
+                              <rect x="1" y="1" width="14" height="14" rx="2" stroke="currentColor" strokeWidth="1.2" />
+                            </svg>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                   {order.items.length > 4 && (
                     <div
                       className="w-12 h-12 flex items-center justify-center shrink-0 text-[13px] font-medium"
@@ -201,9 +283,8 @@ export default function Orders() {
                     onClick={(e) => {
                       e.stopPropagation();
                       haptic.selectionChanged();
-                      reorderMutation.mutate(order.id);
+                      handleReorder(order);
                     }}
-                    disabled={reorderMutation.isPending}
                   >
                     Qayta buyurtma
                   </button>
@@ -211,6 +292,24 @@ export default function Orders() {
               </div>
             );
           })}
+
+          <div ref={loaderRef}>
+            {isFetchingNextPage && (
+              <div className="flex flex-col gap-3 pt-1">
+                {Array.from({ length: 2 }, (_, i) => (
+                  <Skeleton key={i} className="h-35 w-full rounded-(--storex-radius-md)" />
+                ))}
+              </div>
+            )}
+            {!hasNextPage && orders.length > 0 && (
+              <p
+                className="text-center text-[13px] py-4"
+                style={{ color: 'var(--tg-theme-hint-color)' }}
+              >
+                Boshqa buyurtma yo'q
+              </p>
+            )}
+          </div>
         </div>
       )}
     </PageLayout>

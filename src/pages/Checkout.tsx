@@ -1,15 +1,19 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { getAddresses, checkout, getDeliverySlots, getPaymentMethods, addToCart, clearCart } from '@/api/storefront';
 import { useCartStore } from '@/store/cartStore';
+import { useAppStore } from '@/store/appStore';
 import { useBackButton } from '@/hooks/useBackButton';
 import { useHaptic } from '@/hooks/useHaptic';
 import { formatPrice, t } from '@/lib/format';
+import { formatAddressLine } from '@/lib/address';
 import { showToast } from '@/lib/toast';
 import { Spinner } from '@/components/ui/Spinner';
 import { isTelegramWebApp, WebApp } from '@/lib/telegram';
 import { SubmitBar } from '@/components/ui/SubmitBar';
+import { RadioRow } from '@/components/ui/RadioRow';
+import { Chip } from '@/components/ui/Chip';
 
 type DeliveryMethod = 'delivery' | 'pickup';
 
@@ -26,11 +30,13 @@ export default function Checkout() {
   const deliveryCost = useCartStore((s) => s.deliveryCost);
   const setDeliveryCost = useCartStore((s) => s.setDeliveryCost);
   const clear = useCartStore((s) => s.clear);
+  const storeConfig = useAppStore((s) => s.storeConfig);
 
   const [userSelectedAddress, setUserSelectedAddress] = useState<number | null>(null);
   const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>('delivery');
   const [paymentMethod, setPaymentMethod] = useState<string>('click');
-  const [selectedSlotId, setSelectedSlotId] = useState<number | null>(null);
+  const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null);
+  const [selectedPickupPointId, setSelectedPickupPointId] = useState<number | null>(null);
   const [notes, setNotes] = useState('');
   const [showItems, setShowItems] = useState(false);
 
@@ -58,56 +64,125 @@ export default function Checkout() {
   // Address only required when courier delivery is chosen
   const needsAddress = deliveryMethod === 'delivery';
 
-  // Step progress: pickup has 2 steps (delivery → payment), delivery has 3 (delivery → address → payment)
+  // Pickup points come from the store's own config (same source `delivery_info`
+  // already reads from), not a separate fetch. A store with none configured
+  // cannot fulfil pickup at all, so the option itself is hidden further below.
+  const pickupPoints = storeConfig?.pickup_points ?? [];
+  const hasPickupPoints = pickupPoints.length > 0;
+  const needsPickupPoint = deliveryMethod === 'pickup' && hasPickupPoints;
+  const selectedPickupPoint = pickupPoints.find((p) => p.id === selectedPickupPointId) ?? null;
+
+  // Step progress: pickup has 3 steps when the store has pickup points
+  // (delivery → nuqta → payment), 2 otherwise (delivery → payment), delivery
+  // has 3 (delivery → address → payment).
   const steps = needsAddress
     ? [
         { key: 'delivery', label: 'Yetkazish' },
         { key: 'address', label: 'Manzil' },
         { key: 'payment', label: "To'lov" },
       ]
-    : [
-        { key: 'delivery', label: 'Yetkazish' },
-        { key: 'payment', label: "To'lov" },
-      ];
+    : needsPickupPoint
+      ? [
+          { key: 'delivery', label: 'Yetkazish' },
+          { key: 'pickup-point', label: 'Nuqta' },
+          { key: 'payment', label: "To'lov" },
+        ]
+      : [
+          { key: 'delivery', label: 'Yetkazish' },
+          { key: 'payment', label: "To'lov" },
+        ];
   const currentStep = !deliveryMethod
     ? 0
     : needsAddress
       ? selectedAddress
         ? 2
         : 1
-      : 1;
+      : needsPickupPoint
+        ? selectedPickupPoint
+          ? 2
+          : 1
+        : 1;
 
-  // Delivery cost is not configured yet; keep 0 for both methods.
+  // The server recomputes the delivery fee from the same company settings when
+  // it creates the order, so mirroring that formula here is what keeps the
+  // total the shopper approves equal to the total they are charged. Hardcoding
+  // 0 (the previous behaviour) silently under-quoted every order the moment a
+  // store configured a real fee.
+  const deliveryFeeFor = useCallback(
+    (method: DeliveryMethod) => {
+      if (method === 'pickup') return 0;
+      const info = storeConfig?.delivery_info;
+      if (!info) return 0;
+      const freeFrom = info.free_delivery_from ?? 0;
+      if (freeFrom > 0 && subtotal() >= freeFrom) return 0;
+      return info.delivery_cost ?? 0;
+    },
+    [storeConfig, subtotal],
+  );
+
   const handleDeliveryChange = (method: DeliveryMethod) => {
     setDeliveryMethod(method);
-    setDeliveryCost(0);
+    setDeliveryCost(deliveryFeeFor(method));
     haptic.selectionChanged();
   };
+
+  // Keep the fee in sync when the config arrives or the basket total crosses
+  // the free-delivery threshold — not just when the method is tapped.
+  useEffect(() => {
+    setDeliveryCost(deliveryFeeFor(deliveryMethod));
+  }, [deliveryFeeFor, deliveryMethod, setDeliveryCost]);
+
+
+  // `paymentMethod` starts as a guess made before the store's methods are
+  // known. The server validates against the very list this endpoint returns,
+  // so a selection that isn't on it can only ever fail — resolve to a real one
+  // rather than storing the correction, which would fight the user's own taps.
+  const availableMethods = (paymentMethods ?? []).filter((m) => m.available);
+  const effectivePaymentMethod =
+    availableMethods.some((m) => m.id === paymentMethod)
+      ? paymentMethod
+      : (availableMethods[0]?.id ?? paymentMethod);
 
   const checkoutMutation = useMutation({
     mutationFn: async () => {
       if (needsAddress && selectedAddress === null) throw new Error('No address selected');
+      if (needsPickupPoint && selectedPickupPointId === null) throw new Error('No pickup point selected');
 
-      // Sync local cart to server (cart is local-only on the client; backend reads
-      // its server-side cart in CheckoutController, so we push items first).
-      await clearCart().catch(() => {});
-      for (const item of items) {
-        await addToCart({
-          product_id: String(item.product_id),
-          quantity: item.quantity,
-          variant_name: item.variant?.name,
-          unit_price: item.price,
-          name: t(item.product.name),
-          thumbnail: item.product.thumbnail ?? item.product.image,
-          slug: item.product.slug,
-        });
+      // The cart is local-only while browsing; the backend reads its own
+      // server-side cart at checkout, so we push the items first.
+      //
+      // clearCart's failure is NOT swallowed: CartService::add increments an
+      // existing line rather than replacing it, so a failed clear followed by
+      // a successful re-add would silently double every quantity — and charge
+      // for it. Better to fail loudly before any money is involved.
+      await clearCart();
+
+      // Sent in parallel rather than serially: each request carries its own
+      // 10s timeout, and a serial loop over a large cart is long enough for
+      // Telegram to background the WebView mid-sync.
+      try {
+        await Promise.all(
+          items.map((item) =>
+            addToCart({
+              product_id: String(item.product_id),
+              quantity: item.quantity,
+              variant_name: item.variant?.name,
+            }),
+          ),
+        );
+      } catch (err) {
+        // A partial server cart would otherwise sit in cache for 7 days and
+        // poison the next checkout. Leave nothing behind.
+        await clearCart().catch(() => {});
+        throw err;
       }
 
       return checkout({
         address_id: needsAddress ? selectedAddress! : undefined,
         delivery_method: deliveryMethod,
-        payment_method: paymentMethod,
+        payment_method: effectivePaymentMethod,
         delivery_slot_id: needsAddress ? (selectedSlotId ?? undefined) : undefined,
+        pickup_point_id: needsPickupPoint ? (selectedPickupPointId ?? undefined) : undefined,
         notes: notes || undefined,
         promo_code: promoCode ?? undefined,
       });
@@ -115,7 +190,7 @@ export default function Checkout() {
     onSuccess: (data) => {
       haptic.impact('heavy');
       clear();
-      if (data.payment_url && paymentMethod !== 'cash') {
+      if (data.payment_url && effectivePaymentMethod !== 'cash') {
         if (isTelegramWebApp) {
           WebApp.openLink(data.payment_url);
         } else {
@@ -124,8 +199,15 @@ export default function Checkout() {
       }
       navigate(`/order-success/${data.order.id}`);
     },
-    onError: () => {
-      showToast('error', "Xatolik yuz berdi. Qayta urinib ko'ring.");
+    onError: (err: unknown) => {
+      // The server rejects a checkout whose cached price no longer matches the
+      // product (422) and re-syncs the cart to the current price. Swallowing
+      // that behind a generic toast would leave the shopper retrying blindly,
+      // so surface what the server actually said.
+      const message =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
+        "Xatolik yuz berdi. Qayta urinib ko'ring.";
+      showToast('error', message);
       haptic.notification('error');
     },
   });
@@ -133,7 +215,8 @@ export default function Checkout() {
   const canSubmit =
     items.length > 0
     && !checkoutMutation.isPending
-    && (!needsAddress || selectedAddress !== null);
+    && (!needsAddress || selectedAddress !== null)
+    && (!needsPickupPoint || selectedPickupPointId !== null);
 
   const handleSubmit = useCallback(() => {
     if (!canSubmit) return;
@@ -205,47 +288,36 @@ export default function Checkout() {
                   </svg>
                 ),
               },
-              {
-                value: 'pickup' as const,
-                label: "O'zi olib ketish",
-                desc: 'Bepul',
-                icon: (
-                  <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                    <path d="M3 7l7-4 7 4v8l-7 4-7-4V7z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
-                    <path d="M3 7l7 4m0 0l7-4m-7 4v8" stroke="currentColor" strokeWidth="1.3" />
-                  </svg>
-                ),
-              },
+              ...(hasPickupPoints
+                ? [
+                    {
+                      value: 'pickup' as const,
+                      label: "O'zi olib ketish",
+                      desc: 'Bepul',
+                      icon: (
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                          <path d="M3 7l7-4 7 4v8l-7 4-7-4V7z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
+                          <path d="M3 7l7 4m0 0l7-4m-7 4v8" stroke="currentColor" strokeWidth="1.3" />
+                        </svg>
+                      ),
+                    },
+                  ]
+                : []),
             ]).map((opt) => {
               const isSelected = deliveryMethod === opt.value;
               return (
-                <button
+                <RadioRow
                   key={opt.value}
-                  className="storex-card press-effect flex items-center gap-3 p-3 w-full text-left"
-                  style={{
-                    border: isSelected
-                      ? '1.5px solid var(--storex-primary)'
-                      : '1.5px solid var(--storex-border)',
-                    color: isSelected ? 'var(--storex-primary)' : 'var(--tg-theme-hint-color)',
-                  }}
+                  selected={isSelected}
                   onClick={() => handleDeliveryChange(opt.value)}
-                >
-                  <span style={{ color: isSelected ? 'var(--storex-primary)' : 'var(--tg-theme-hint-color)' }}>
-                    {opt.icon}
-                  </span>
-                  <div className="flex-1">
-                    <p className="text-[15px] font-medium" style={{ color: 'var(--tg-theme-text-color)' }}>{opt.label}</p>
-                    <p className="text-[13px]" style={{ color: 'var(--tg-theme-hint-color)' }}>{opt.desc}</p>
-                  </div>
-                  <div
-                    className="w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0"
-                    style={{ borderColor: isSelected ? 'var(--storex-primary)' : 'var(--tg-theme-hint-color)' }}
-                  >
-                    {isSelected && (
-                      <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: 'var(--storex-primary)' }} />
-                    )}
-                  </div>
-                </button>
+                  icon={
+                    <span style={{ color: isSelected ? 'var(--storex-primary)' : 'var(--tg-theme-hint-color)' }}>
+                      {opt.icon}
+                    </span>
+                  }
+                  title={opt.label}
+                  subtitle={opt.desc}
+                />
               );
             })}
           </div>
@@ -260,9 +332,9 @@ export default function Checkout() {
                   </p>
                   <div className="flex gap-2 flex-wrap mb-3">
                     {deliverySlots.today.map((slot) => (
-                      <button
+                      <Chip
                         key={slot.id}
-                        className={`storex-chip ${selectedSlotId === slot.id ? 'active' : ''}`}
+                        active={selectedSlotId === slot.id}
                         disabled={!slot.available}
                         style={{ opacity: slot.available ? 1 : 0.4 }}
                         onClick={() => {
@@ -271,7 +343,7 @@ export default function Checkout() {
                         }}
                       >
                         {slot.time}
-                      </button>
+                      </Chip>
                     ))}
                   </div>
                 </>
@@ -283,9 +355,9 @@ export default function Checkout() {
                   </p>
                   <div className="flex gap-2 flex-wrap">
                     {deliverySlots.tomorrow.map((slot) => (
-                      <button
+                      <Chip
                         key={slot.id}
-                        className={`storex-chip ${selectedSlotId === slot.id ? 'active' : ''}`}
+                        active={selectedSlotId === slot.id}
                         disabled={!slot.available}
                         style={{ opacity: slot.available ? 1 : 0.4 }}
                         onClick={() => {
@@ -294,7 +366,7 @@ export default function Checkout() {
                         }}
                       >
                         {slot.time}
-                      </button>
+                      </Chip>
                     ))}
                   </div>
                 </>
@@ -327,41 +399,28 @@ export default function Checkout() {
                   {addresses.map((addr) => {
                     const isSelected = selectedAddress === addr.id;
                     return (
-                      <button
+                      <RadioRow
                         key={addr.id}
-                        className="storex-card press-effect flex items-start gap-3 p-3 text-left w-full"
-                        style={{
-                          border: isSelected
-                            ? '1.5px solid var(--storex-primary)'
-                            : '1.5px solid var(--storex-border)',
-                        }}
+                        align="start"
+                        selected={isSelected}
                         onClick={() => {
                           setUserSelectedAddress(addr.id);
                           haptic.selectionChanged();
                         }}
-                      >
-                        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" className="shrink-0 mt-0.5" style={{ color: 'var(--storex-primary)' }}>
-                          <path d="M9 1.5C5.96 1.5 3.5 3.96 3.5 7c0 4.5 5.5 9.5 5.5 9.5s5.5-5 5.5-9.5c0-3.04-2.46-5.5-5.5-5.5z" fill="currentColor" opacity="0.15" />
-                          <path d="M9 1.5C5.96 1.5 3.5 3.96 3.5 7c0 4.5 5.5 9.5 5.5 9.5s5.5-5 5.5-9.5c0-3.04-2.46-5.5-5.5-5.5z" stroke="currentColor" strokeWidth="1.2" />
-                          <circle cx="9" cy="7" r="2" fill="currentColor" />
-                        </svg>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[15px] font-medium" style={{ color: 'var(--tg-theme-text-color)' }}>
+                        icon={
+                          <svg width="18" height="18" viewBox="0 0 18 18" fill="none" style={{ color: 'var(--storex-primary)' }}>
+                            <path d="M9 1.5C5.96 1.5 3.5 3.96 3.5 7c0 4.5 5.5 9.5 5.5 9.5s5.5-5 5.5-9.5c0-3.04-2.46-5.5-5.5-5.5z" fill="currentColor" opacity="0.15" />
+                            <path d="M9 1.5C5.96 1.5 3.5 3.96 3.5 7c0 4.5 5.5 9.5 5.5 9.5s5.5-5 5.5-9.5c0-3.04-2.46-5.5-5.5-5.5z" stroke="currentColor" strokeWidth="1.2" />
+                            <circle cx="9" cy="7" r="2" fill="currentColor" />
+                          </svg>
+                        }
+                        title={
+                          <>
                             {addr.label} {addr.is_primary && <span className="text-[11px]" style={{ color: 'var(--tg-theme-hint-color)' }}>(asosiy)</span>}
-                          </p>
-                          <p className="text-[13px] mt-0.5 line-clamp-1" style={{ color: 'var(--tg-theme-hint-color)' }}>
-                            {addr.city}, {addr.district}, {addr.full_address}
-                          </p>
-                        </div>
-                        <div
-                          className="w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 mt-1"
-                          style={{ borderColor: isSelected ? 'var(--storex-primary)' : 'var(--tg-theme-hint-color)' }}
-                        >
-                          {isSelected && (
-                            <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: 'var(--storex-primary)' }} />
-                          )}
-                        </div>
-                      </button>
+                          </>
+                        }
+                        subtitle={<p className="line-clamp-1">{formatAddressLine(addr)}</p>}
+                      />
                     );
                   })}
                 </div>
@@ -387,6 +446,50 @@ export default function Checkout() {
         </>
       )}
 
+      {/* Step 2 (pickup variant): Pickup point — only when pickup method needs one */}
+      {needsPickupPoint && (
+        <>
+          <div className="storex-divider" />
+          <section style={{ backgroundColor: 'var(--tg-theme-bg-color)' }}>
+            <div className="px-4 py-3">
+              <p className="text-[15px] font-semibold mb-3" style={{ color: 'var(--tg-theme-text-color)' }}>
+                Olib ketish nuqtasi
+              </p>
+              <div className="flex flex-col gap-2">
+                {pickupPoints.map((point) => {
+                  const isSelected = selectedPickupPointId === point.id;
+                  return (
+                    <RadioRow
+                      key={point.id}
+                      align="start"
+                      selected={isSelected}
+                      onClick={() => {
+                        setSelectedPickupPointId(point.id);
+                        haptic.selectionChanged();
+                      }}
+                      icon={
+                        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" style={{ color: 'var(--storex-primary)' }}>
+                          <path d="M9 1.5C5.96 1.5 3.5 3.96 3.5 7c0 4.5 5.5 9.5 5.5 9.5s5.5-5 5.5-9.5c0-3.04-2.46-5.5-5.5-5.5z" fill="currentColor" opacity="0.15" />
+                          <path d="M9 1.5C5.96 1.5 3.5 3.96 3.5 7c0 4.5 5.5 9.5 5.5 9.5s5.5-5 5.5-9.5c0-3.04-2.46-5.5-5.5-5.5z" stroke="currentColor" strokeWidth="1.2" />
+                          <circle cx="9" cy="7" r="2" fill="currentColor" />
+                        </svg>
+                      }
+                      title={point.name}
+                      subtitle={
+                        <>
+                          <p>{point.address}</p>
+                          <p className="mt-0.5">{point.working_hours}</p>
+                        </>
+                      }
+                    />
+                  );
+                })}
+              </div>
+            </div>
+          </section>
+        </>
+      )}
+
       {/* Step 3: Payment method */}
       <div className="storex-divider" />
       <section style={{ backgroundColor: 'var(--tg-theme-bg-color)' }}>
@@ -395,36 +498,19 @@ export default function Checkout() {
             To'lov usuli
           </p>
           <div className="flex flex-col gap-2">
-            {(paymentMethods ?? []).filter((m) => m.available).map((method) => {
-              const isSelected = paymentMethod === method.id;
+            {availableMethods.map((method) => {
+              const isSelected = effectivePaymentMethod === method.id;
               return (
-                <button
+                <RadioRow
                   key={method.id}
-                  className="storex-card press-effect flex items-center gap-3 p-3 w-full text-left"
-                  style={{
-                    border: isSelected
-                      ? '1.5px solid var(--storex-primary)'
-                      : '1.5px solid var(--storex-border)',
-                    color: isSelected ? 'var(--storex-primary)' : 'var(--tg-theme-hint-color)',
-                  }}
+                  selected={isSelected}
                   onClick={() => {
                     setPaymentMethod(method.id);
                     haptic.selectionChanged();
                   }}
-                >
-                  <PaymentIcon methodId={method.id} isSelected={isSelected} />
-                  <div className="flex-1">
-                    <p className="text-[15px] font-medium" style={{ color: 'var(--tg-theme-text-color)' }}>{method.name}</p>
-                  </div>
-                  <div
-                    className="w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0"
-                    style={{ borderColor: isSelected ? 'var(--storex-primary)' : 'var(--tg-theme-hint-color)' }}
-                  >
-                    {isSelected && (
-                      <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: 'var(--storex-primary)' }} />
-                    )}
-                  </div>
-                </button>
+                  icon={<PaymentIcon methodId={method.id} isSelected={isSelected} />}
+                  title={method.name}
+                />
               );
             })}
           </div>
@@ -558,7 +644,13 @@ export default function Checkout() {
         onClick={handleSubmit}
         disabled={!canSubmit}
         loading={checkoutMutation.isPending}
-        hint={needsAddress && selectedAddress === null ? 'Avval manzilni tanlang' : undefined}
+        hint={
+          needsAddress && selectedAddress === null
+            ? 'Avval manzilni tanlang'
+            : needsPickupPoint && selectedPickupPointId === null
+              ? 'Avval olib ketish nuqtasini tanlang'
+              : undefined
+        }
       />
     </div>
   );

@@ -88,7 +88,7 @@ export default function Profile() {
       >
         {/* Top Navigation Bar */}
         <header
-          className="sticky top-0 z-40 flex items-center justify-between px-6 py-3"
+          className="sticky top-0 z-40 flex items-center justify-between px-4 py-3"
           style={{ backgroundColor: 'var(--stitch-surface)' }}
         >
           <div className="flex items-center gap-4">
@@ -117,7 +117,7 @@ export default function Profile() {
           </button>
         </header>
 
-        <main className="max-w-md mx-auto px-6 pt-4 pb-32">
+        <main className="px-4 pt-4 pb-32">
           {/* User Identity */}
           <section className="flex flex-col items-center mb-8">
             <div className="relative mb-4">
@@ -125,7 +125,7 @@ export default function Profile() {
                 className="w-24 h-24 rounded-full overflow-hidden"
                 style={{
                   border: '4px solid var(--stitch-surface-container-lowest)',
-                  boxShadow: '0 20px 25px -5px rgba(0, 97, 164, 0.05), 0 8px 10px -6px rgba(0, 97, 164, 0.05)',
+                  boxShadow: 'var(--storex-shadow-lg)',
                 }}
               >
                 {user?.avatar ? (
@@ -154,7 +154,7 @@ export default function Profile() {
                   backgroundColor: 'var(--stitch-primary)',
                   border: '2px solid var(--stitch-surface-container-lowest)',
                   color: '#fff',
-                  boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)',
+                  boxShadow: 'var(--storex-shadow-md)',
                 }}
               >
                 <span className="material-symbols-outlined filled" style={{ fontSize: 14 }}>
@@ -232,9 +232,9 @@ function StatCard({
     secondary: 'var(--stitch-secondary)',
   };
   const tintBg = {
-    primary: 'rgba(0, 97, 164, 0.1)',
-    error: 'rgba(186, 26, 26, 0.1)',
-    secondary: 'rgba(65, 96, 132, 0.1)',
+    primary: 'color-mix(in srgb, var(--stitch-primary) 10%, transparent)',
+    error: 'color-mix(in srgb, var(--stitch-error) 10%, transparent)',
+    secondary: 'color-mix(in srgb, var(--stitch-secondary) 10%, transparent)',
   };
   return (
     <button
@@ -244,7 +244,7 @@ function StatCard({
         backgroundColor: 'var(--stitch-surface-container-lowest)',
         borderRadius: 12,
         padding: 16,
-        boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+        boxShadow: 'var(--storex-shadow-sm)',
       }}
     >
       <div
@@ -262,7 +262,7 @@ function StatCard({
         {count}
       </span>
       <span
-        className="text-[10px] font-semibold uppercase tracking-wider mt-0.5"
+        className="text-[11px] font-medium mt-0.5"
         style={{ color: 'var(--stitch-on-surface-variant)' }}
       >
         {label}
@@ -295,7 +295,7 @@ function MenuGroup({
         style={{
           backgroundColor: 'var(--stitch-surface-container-lowest)',
           borderRadius: 16,
-          boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+          boxShadow: 'var(--storex-shadow-sm)',
         }}
       >
         {items.map((item, idx) => {
@@ -376,11 +376,12 @@ function Toggle({ on, onChange }: { on: boolean; onChange: () => void }) {
       }}
     >
       <span
-        className="absolute top-0.5 w-5 h-5 rounded-full bg-white transition-all duration-200"
+        className="absolute top-0.5 w-5 h-5 rounded-full transition-all duration-200"
         style={{
           left: on ? 22 : 2,
-          boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
-          border: on ? 'none' : '1px solid #d1d5db',
+          backgroundColor: 'var(--tg-theme-button-text-color)',
+          boxShadow: 'var(--storex-shadow-md)',
+          border: on ? 'none' : '1px solid var(--stitch-outline-variant)',
         }}
       />
     </button>

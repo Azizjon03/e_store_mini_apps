@@ -1,11 +1,13 @@
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getAddresses, deleteAddress } from '@/api/storefront';
+import { PageLayout } from '@/components/layout/PageLayout';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { useHaptic } from '@/hooks/useHaptic';
 import { showToast } from '@/lib/toast';
 import { useTelegram } from '@/hooks/useTelegram';
+import { formatAddressLine } from '@/lib/address';
 
 export default function Addresses() {
   const navigate = useNavigate();
@@ -38,7 +40,30 @@ export default function Addresses() {
   };
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: 'var(--tg-theme-bg-color)' }}>
+    <PageLayout showSearch={false}>
+      {/* Header — same back-chevron + title treatment as Orders.tsx. Reached
+          from Profile's "Manzillarim" link; without this the screen had no
+          title and no way back outside Telegram, where there's no native
+          BackButton to fall back on. */}
+      <div
+        className="px-4 py-4 flex items-center gap-3"
+        style={{ backgroundColor: 'var(--tg-theme-bg-color)' }}
+      >
+        <button
+          aria-label="Orqaga"
+          className="shrink-0 w-9 h-9 flex items-center justify-center press-effect"
+          onClick={() => navigate(-1)}
+          style={{ color: 'var(--tg-theme-text-color)' }}
+        >
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+            <path d="M12.5 15l-5-5 5-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+        <h1 className="text-[17px] font-bold" style={{ color: 'var(--tg-theme-text-color)' }}>
+          Manzillarim
+        </h1>
+      </div>
+
       <div className="px-4 py-4">
         {isLoading ? (
           <div className="flex flex-col gap-3">
@@ -74,7 +99,7 @@ export default function Addresses() {
                       )}
                     </div>
                     <p className="text-sm" style={{ color: 'var(--tg-theme-hint-color)' }}>
-                      {addr.city}, {addr.district}, {addr.full_address}
+                      {formatAddressLine(addr)}
                     </p>
                     {addr.landmark && (
                       <p className="text-xs mt-1" style={{ color: 'var(--tg-theme-hint-color)' }}>
@@ -119,6 +144,6 @@ export default function Addresses() {
           + Yangi manzil qo'shish
         </button>
       </div>
-    </div>
+    </PageLayout>
   );
 }

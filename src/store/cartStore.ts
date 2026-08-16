@@ -9,6 +9,8 @@ interface CartState {
   deliveryCost: number;
 
   addItem: (product: Product, quantity: number, variant?: ProductVariant) => void;
+  /** Merge pre-built lines (reorder) into the cart, summing quantity on lines that already exist. */
+  mergeItems: (items: CartItem[]) => void;
   updateQuantity: (itemId: string, quantity: number) => void;
   removeItem: (itemId: string) => void;
   clear: () => void;
@@ -21,8 +23,18 @@ interface CartState {
   total: () => number;
 }
 
-function makeItemId(productId: number, variantId?: number) {
-  return variantId ? `${productId}:${variantId}` : `${productId}`;
+/**
+ * Cart line identity. Reorder builds lines outside the store, so this is exported —
+ * an id computed any other way silently fails to merge with an added line.
+ * A variant id is its 0-based index in the product's `variants` array, so `0` is
+ * a real id: this must test for presence, never truthiness, or the first variant
+ * of every product collapses onto the product-level line and is billed the base
+ * price. A line with no variant at all still yields the bare `"<productId>"`.
+ */
+export function makeItemId(productId: number, variantId?: number | null) {
+  return variantId !== undefined && variantId !== null
+    ? `${productId}:${variantId}`
+    : `${productId}`;
 }
 
 export const useCartStore = create<CartState>()(
@@ -45,7 +57,10 @@ export const useCartStore = create<CartState>()(
             ),
           });
         } else {
-          const price = product.price + (variant?.extra_price ?? 0);
+          // `variant.price` is the absolute price checkout charges; the
+          // base + extra_price sum is only the fallback for a variant that
+          // carries no price of its own (backend then omits extra_price too).
+          const price = variant?.price ?? product.price + (variant?.extra_price ?? 0);
           set({
             items: [
               ...items,
@@ -53,6 +68,19 @@ export const useCartStore = create<CartState>()(
             ],
           });
         }
+      },
+
+      mergeItems: (incoming) => {
+        const items = [...get().items];
+        for (const line of incoming) {
+          const index = items.findIndex((i) => i.id === line.id);
+          if (index >= 0) {
+            items[index] = { ...items[index], quantity: items[index].quantity + line.quantity };
+          } else {
+            items.push(line);
+          }
+        }
+        set({ items });
       },
 
       updateQuantity: (itemId, quantity) => {

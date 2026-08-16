@@ -30,6 +30,30 @@ export default function Favorites() {
 
   return (
     <PageLayout showSearch={false}>
+      {/* Header — same back-chevron + title treatment as Orders.tsx. This
+          screen has no back control or title of its own, and the tab bar
+          alone isn't a way back for a user who arrived from Profile's
+          "Sevimlilar" link and now wants to return, especially outside
+          Telegram where there's no native BackButton to fall back on. */}
+      <div
+        className="px-4 py-4 flex items-center gap-3"
+        style={{ backgroundColor: 'var(--tg-theme-bg-color)' }}
+      >
+        <button
+          aria-label="Orqaga"
+          className="shrink-0 w-9 h-9 flex items-center justify-center press-effect"
+          onClick={() => navigate(-1)}
+          style={{ color: 'var(--tg-theme-text-color)' }}
+        >
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+            <path d="M12.5 15l-5-5 5-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+        <h1 className="text-[17px] font-bold" style={{ color: 'var(--tg-theme-text-color)' }}>
+          Sevimlilar
+        </h1>
+      </div>
+
       {isLoading ? (
         <div className="px-4 py-4 flex flex-col gap-3">
           {Array.from({ length: 3 }, (_, i) => (
@@ -75,9 +99,9 @@ export default function Favorites() {
                     <span className="text-sm font-semibold" style={{ color: 'var(--tg-theme-text-color)' }}>
                       {formatPrice(product.price)}
                     </span>
-                    {product.old_price && (
-                      <span className="text-xs line-through" style={{ color: 'var(--store-price-old)' }}>
-                        {formatPrice(product.old_price)}
+                    {(product.old_price || product.compare_price) && (
+                      <span className="text-xs line-through" style={{ color: 'var(--storex-price-old)' }}>
+                        {formatPrice((product.old_price || product.compare_price)!)}
                       </span>
                     )}
                   </div>

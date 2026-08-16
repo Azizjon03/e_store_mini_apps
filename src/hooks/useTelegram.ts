@@ -9,10 +9,17 @@ export function useTelegram() {
       user: undefined,
       colorScheme: 'light' as const,
       initData: '',
+      // `expand`/`close` have no browser equivalent — a page cannot resize the
+      // Telegram sheet or close itself — so a no-op is the honest degradation.
       expand: noop,
       close: noop,
-      showAlert: noop as (message: string) => void,
-      showConfirm: () => Promise.resolve(false),
+      // Dialogs do have one. Returning a hard `false` here used to degrade
+      // "ask the user" into "silently answer no", which killed every
+      // confirm-gated action outside Telegram (address delete never fired:
+      // no dialog, no request, no feedback). Ask with the browser's own
+      // dialog and return the real answer instead.
+      showAlert: (message: string) => window.alert(message),
+      showConfirm: (message: string) => Promise.resolve(window.confirm(message)),
     };
   }
 

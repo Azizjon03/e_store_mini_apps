@@ -1,13 +1,15 @@
-import { useState, useCallback, useRef, useMemo, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { getProductDetail } from '@/api/storefront';
 import { formatPrice, formatDate, t } from '@/lib/format';
-import { useCartStore } from '@/store/cartStore';
+import { useCartStore, makeItemId } from '@/store/cartStore';
 import { useHaptic } from '@/hooks/useHaptic';
 import { useBackButton } from '@/hooks/useBackButton';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { ProductCard } from '@/components/product/ProductCard';
+import { QuantityStepper } from '@/components/ui/QuantityStepper';
+import { Chip } from '@/components/ui/Chip';
 import { useFavorite } from '@/hooks/useFavorite';
 import type { ProductVariant } from '@/api/types';
 
@@ -21,7 +23,7 @@ export default function ProductDetail() {
   useBackButton();
 
   const [currentImage, setCurrentImage] = useState(0);
-  const [selectedVariants, setSelectedVariants] = useState<Record<string, ProductVariant>>({});
+  const [selectedVariant, setSelectedVariant] = useState<ProductVariant | undefined>(undefined);
   const [descExpanded, setDescExpanded] = useState(false);
   const [justAdded, setJustAdded] = useState(false);
   const addedTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -43,25 +45,55 @@ export default function ProductDetail() {
 
   const images = product?.images?.length ? product.images : product?.image ? [product.image] : [];
 
-  const variantTypes = useMemo(
-    () => product?.variants ? [...new Set(product.variants.map((v) => v.type))] : [],
-    [product],
-  );
-  const allVariantsSelected = variantTypes.every((type) => selectedVariants[type]);
+  // A variant is one entry of the product's own `variants` array — a single
+  // list of named options, not a type/value matrix. Nothing to select means
+  // the product stays immediately buyable.
+  const variants = product?.variants ?? [];
+  const needsVariant = variants.length > 0 && !selectedVariant;
 
-  const selectedVariant = Object.values(selectedVariants)[0];
-  const cartItemId = selectedVariant
-    ? `${product?.id}:${selectedVariant.id}`
-    : `${product?.id}`;
+  // Must go through makeItemId: variant ids are 0-based, and a hand-built key
+  // disagrees with the store's for id 0.
+  const cartItemId = product ? makeItemId(product.id, selectedVariant?.id) : null;
   const inCart = cartItems.find((i) => i.id === cartItemId);
 
+  // `product.price` is declared `number` in src/api/types.ts, but the
+  // backend casts it `decimal:2` and Laravel serializes decimal casts as a
+  // numeric STRING ("14990000.00", confirmed against the live API) — while
+  // `variant.price` inside the same response is a plain JSON number. Without
+  // normalizing both to `Number(...)`, a variant priced identically to the
+  // base product (e.g. "14990000" vs "14990000.00") compared unequal below
+  // just from the type mismatch, not an actual price difference.
+  const basePrice = product ? Number(product.price) : 0;
+
+  // `variant.price` is what checkout charges; base + extra_price is the
+  // fallback for a variant that carries no price of its own.
   const currentPrice = product
-    ? product.price + Object.values(selectedVariants).reduce((sum, v) => sum + (v.extra_price ?? 0), 0)
+    ? selectedVariant
+      ? selectedVariant.price ?? basePrice + (selectedVariant.extra_price ?? 0)
+      : basePrice
     : 0;
+
+  // `old_price` / `discount_percent` describe the *base* product's price,
+  // not any variant's — `ProductVariant` (src/api/types.ts) carries no
+  // `old_price` of its own, so there's no honest "before" price to compare
+  // a variant's current price against. Once a selected variant changes what
+  // "currentPrice" actually is, the base discount no longer describes it —
+  // show the strike-through/badge only while the displayed price still
+  // matches the base product's own price (comparing against `basePrice`,
+  // not the raw `product.price` string, is what makes that comparison
+  // actually work — see basePrice above).
+  const showBaseDiscount = currentPrice === basePrice;
+
+  // The API sends the base "before" price as `compare_price`; `old_price` is
+  // declared on the `Product` type but the backend never populates it (see
+  // ProductCard, which already reads `product.old_price || product.compare_price`
+  // for the same reason). Reading `old_price` alone here meant the
+  // strike-through price never rendered at all.
+  const oldPrice = product?.old_price || product?.compare_price;
 
   const handleAddToCart = useCallback(() => {
     if (!product) return;
-    if (variantTypes.length > 0 && !allVariantsSelected) return;
+    if (needsVariant) return;
     if (inCart) {
       navigate('/cart');
       return;
@@ -71,7 +103,7 @@ export default function ProductDetail() {
     setJustAdded(true);
     if (addedTimerRef.current) clearTimeout(addedTimerRef.current);
     addedTimerRef.current = setTimeout(() => setJustAdded(false), 1500);
-  }, [product, variantTypes, allVariantsSelected, inCart, addItem, selectedVariant, haptic, navigate]);
+  }, [product, needsVariant, inCart, addItem, selectedVariant, haptic, navigate]);
 
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartX.current = e.touches[0].clientX;
@@ -144,7 +176,7 @@ export default function ProductDetail() {
         <div className="absolute top-0 left-0 right-0 flex items-center justify-between p-3 z-10">
           <button
             className="w-9 h-9 rounded-full flex items-center justify-center"
-            style={{ backgroundColor: 'rgba(255,255,255,0.9)', boxShadow: 'var(--storex-shadow-sm)' }}
+            style={{ backgroundColor: 'color-mix(in srgb, var(--tg-theme-bg-color) 85%, transparent)', boxShadow: 'var(--storex-shadow-sm)' }}
             onClick={() => navigate(-1)}
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--tg-theme-text-color)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -155,7 +187,7 @@ export default function ProductDetail() {
           <div className="flex gap-2">
             <button
               className="w-9 h-9 rounded-full flex items-center justify-center"
-              style={{ backgroundColor: 'rgba(255,255,255,0.9)', boxShadow: 'var(--storex-shadow-sm)' }}
+              style={{ backgroundColor: 'color-mix(in srgb, var(--tg-theme-bg-color) 85%, transparent)', boxShadow: 'var(--storex-shadow-sm)' }}
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--tg-theme-text-color)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" />
@@ -164,7 +196,7 @@ export default function ProductDetail() {
             </button>
             <button
               className="w-9 h-9 rounded-full flex items-center justify-center"
-              style={{ backgroundColor: isFavorite ? 'var(--storex-price-sale)' : 'rgba(255,255,255,0.9)', boxShadow: 'var(--storex-shadow-sm)' }}
+              style={{ backgroundColor: isFavorite ? 'var(--storex-price-sale)' : 'color-mix(in srgb, var(--tg-theme-bg-color) 85%, transparent)', boxShadow: 'var(--storex-shadow-sm)' }}
               onClick={toggleFavorite}
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill={isFavorite ? '#fff' : 'none'} stroke={isFavorite ? '#fff' : 'var(--tg-theme-text-color)'} strokeWidth="2">
@@ -194,7 +226,12 @@ export default function ProductDetail() {
                 style={{
                   width: i === currentImage ? 16 : 5,
                   height: 5,
-                  backgroundColor: i === currentImage ? 'var(--storex-primary)' : 'rgba(0,0,0,0.2)',
+                  // Sits on the page background, not on the photo, so a fixed
+                  // black dot disappears in dark mode.
+                  backgroundColor:
+                    i === currentImage
+                      ? 'var(--storex-primary)'
+                      : 'color-mix(in srgb, var(--tg-theme-text-color) 20%, transparent)',
                 }}
               />
             ))}
@@ -215,13 +252,13 @@ export default function ProductDetail() {
           <div className="flex items-center gap-1.5 mb-3">
             <div className="flex gap-0.5">
               {Array.from({ length: 5 }, (_, i) => (
-                <svg key={i} width="14" height="14" viewBox="0 0 12 12" fill={i < Math.round(product.rating ?? 0) ? '#f59e0b' : '#e5e7eb'}>
+                <svg key={i} width="14" height="14" viewBox="0 0 12 12" fill={i < Math.round(product.reviews_avg_rating ?? 0) ? 'var(--storex-warning)' : 'var(--tg-theme-hint-color)'}>
                   <path d="M6 0l1.76 3.57 3.94.57-2.85 2.78.67 3.93L6 8.89 2.48 10.85l.67-3.93L.3 4.14l3.94-.57z" />
                 </svg>
               ))}
             </div>
             <span className="text-[13px] font-medium" style={{ color: 'var(--tg-theme-text-color)' }}>
-              {product.rating}
+              {(product.reviews_avg_rating ?? 0).toFixed(1)}
             </span>
             <span className="text-[13px]" style={{ color: 'var(--tg-theme-hint-color)' }}>
               ({product.reviews_count} ta sharh)
@@ -233,12 +270,12 @@ export default function ProductDetail() {
           <span className="text-[24px] font-extrabold leading-none" style={{ color: 'var(--storex-primary)' }}>
             {formatPrice(currentPrice)}
           </span>
-          {product.old_price && (
+          {oldPrice && showBaseDiscount && (
             <span className="text-[14px] line-through" style={{ color: 'var(--storex-price-old)' }}>
-              {formatPrice(product.old_price)}
+              {formatPrice(oldPrice)}
             </span>
           )}
-          {discountPercent > 0 && (
+          {discountPercent > 0 && showBaseDiscount && (
             <span
               className="px-2 py-0.5 text-[11px] font-bold text-white"
               style={{
@@ -251,53 +288,28 @@ export default function ProductDetail() {
           )}
         </div>
 
-        {/* Variants */}
-        {variantTypes.map((type) => {
-          const variants = product.variants!.filter((v) => v.type === type);
-          return (
-            <div key={type} className="mb-5">
-              <p className="text-[14px] font-semibold mb-2.5" style={{ color: 'var(--tg-theme-text-color)' }}>
-                {type === 'color' ? 'Rang' : type === 'size' ? "O'lcham" : type}
-              </p>
-              <div className="flex gap-2 flex-wrap">
-                {variants.map((v) => {
-                  const isSelected = selectedVariants[type]?.id === v.id;
-                  return type === 'color' ? (
-                    <button
-                      key={v.id}
-                      className="w-9 h-9 rounded-full transition-all"
-                      style={{
-                        backgroundColor: v.value,
-                        border: isSelected ? '2.5px solid var(--storex-primary)' : '2px solid var(--storex-border)',
-                        outline: isSelected ? '2px solid var(--tg-theme-bg-color)' : 'none',
-                      }}
-                      onClick={() => {
-                        haptic.selectionChanged();
-                        setSelectedVariants((prev) => ({ ...prev, [type]: v }));
-                      }}
-                    />
-                  ) : (
-                    <button
-                      key={v.id}
-                      className="storex-chip"
-                      style={isSelected ? {
-                        backgroundColor: 'var(--storex-primary)',
-                        borderColor: 'var(--storex-primary)',
-                        color: '#fff',
-                      } : undefined}
-                      onClick={() => {
-                        haptic.selectionChanged();
-                        setSelectedVariants((prev) => ({ ...prev, [type]: v }));
-                      }}
-                    >
-                      {v.name}
-                    </button>
-                  );
-                })}
-              </div>
+        {/* Variants — one group, one selection, labelled by variant.name */}
+        {variants.length > 0 && (
+          <div className="mb-5">
+            <p className="text-[14px] font-semibold mb-3" style={{ color: 'var(--tg-theme-text-color)' }}>
+              Turini tanlang
+            </p>
+            <div className="flex gap-2 flex-wrap">
+              {variants.map((v) => (
+                <Chip
+                  key={v.id}
+                  active={selectedVariant?.id === v.id}
+                  onClick={() => {
+                    haptic.selectionChanged();
+                    setSelectedVariant(v);
+                  }}
+                >
+                  {v.name}
+                </Chip>
+              ))}
             </div>
-          );
-        })}
+          </div>
+        )}
 
         <div className="storex-divider -mx-4 my-4" />
 
@@ -328,12 +340,26 @@ export default function ProductDetail() {
           </>
         )}
 
-        {/* Attributes / Specs */}
+        {/* Attributes / Specs — always the base product's own spec. The API
+            gives a variant only a `name` (src/api/types.ts, `ProductVariant`),
+            no per-variant attribute map, so there's no reliable way to know
+            which rows a selected variant would actually change (parsing
+            `variant.name` against attribute values would be a guess, not
+            data). Labelling it honestly beats silently guessing which rows
+            to hide. */}
         {product.attributes && Object.keys(product.attributes).length > 0 && (
           <>
-            <h3 className="text-[16px] font-bold mb-3" style={{ color: 'var(--tg-theme-text-color)' }}>
+            <h3
+              className={`text-[16px] font-bold ${variants.length > 0 ? 'mb-1' : 'mb-3'}`}
+              style={{ color: 'var(--tg-theme-text-color)' }}
+            >
               Xususiyatlari
             </h3>
+            {variants.length > 0 && (
+              <p className="text-[13px] mb-3" style={{ color: 'var(--tg-theme-hint-color)' }}>
+                Asosiy model xususiyatlari — tanlangan tur uchun farq qilishi mumkin
+              </p>
+            )}
             <div
               className="overflow-hidden mb-4"
               style={{ borderRadius: 'var(--storex-radius-md)' }}
@@ -388,7 +414,7 @@ export default function ProductDetail() {
                     </div>
                     <div className="flex gap-0.5">
                       {Array.from({ length: 5 }, (_, i) => (
-                        <svg key={i} width="10" height="10" viewBox="0 0 12 12" fill={i < review.rating ? '#f59e0b' : '#e5e7eb'}>
+                        <svg key={i} width="10" height="10" viewBox="0 0 12 12" fill={i < review.rating ? 'var(--storex-warning)' : 'var(--tg-theme-hint-color)'}>
                           <path d="M6 0l1.76 3.57 3.94.57-2.85 2.78.67 3.93L6 8.89 2.48 10.85l.67-3.93L.3 4.14l3.94-.57z" />
                         </svg>
                       ))}
@@ -426,7 +452,11 @@ export default function ProductDetail() {
 
       {/* Bottom action bar (non-Telegram fallback) — bitta sticky CTA */}
       <div
-        className="fixed bottom-0 left-0 right-0 z-40 px-4 py-3"
+        // `fixed` escapes AppShell's column, so this carries the same cap as
+        // TabBar and SubmitBar. Without it the bar — and its tap area — spanned
+        // the whole desktop window: a click 400px outside the column still
+        // added to the cart.
+        className="fixed bottom-0 left-0 right-0 z-40 px-4 py-3 mx-auto max-w-(--storex-app-max-width)"
         style={{
           backgroundColor: 'var(--tg-theme-bg-color)',
           borderTop: '0.5px solid var(--storex-border)',
@@ -436,47 +466,23 @@ export default function ProductDetail() {
         {inCart ? (
           // Savatda bo'lsa: qty stepper + "Savatga o'tish"
           <div className="flex items-center gap-2">
-            <div
-              className="flex items-center gap-3 px-2 py-1"
-              style={{
-                backgroundColor: 'var(--tg-theme-secondary-bg-color)',
-                borderRadius: 'var(--storex-radius-md)',
-                border: '1px solid var(--storex-border)',
-              }}
-            >
-              <button
-                className="w-9 h-9 grid place-items-center press-effect"
-                style={{ color: 'var(--storex-primary)' }}
-                onClick={() => {
-                  const cartStore = useCartStore.getState();
-                  if (inCart.quantity > 1) {
-                    cartStore.updateQuantity(inCart.id, inCart.quantity - 1);
-                    haptic.selectionChanged();
-                  } else {
-                    cartStore.removeItem(inCart.id);
-                    haptic.impact('light');
-                  }
-                }}
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="5" y1="12" x2="19" y2="12" /></svg>
-              </button>
-              <span
-                className="min-w-[24px] text-center text-[15px] font-semibold"
-                style={{ color: 'var(--tg-theme-text-color)' }}
-              >
-                {inCart.quantity}
-              </span>
-              <button
-                className="w-9 h-9 grid place-items-center press-effect"
-                style={{ color: 'var(--storex-primary)' }}
-                onClick={() => {
-                  useCartStore.getState().updateQuantity(inCart.id, inCart.quantity + 1);
+            <QuantityStepper
+              value={inCart.quantity}
+              onDecrement={() => {
+                const cartStore = useCartStore.getState();
+                if (inCart.quantity > 1) {
+                  cartStore.updateQuantity(inCart.id, inCart.quantity - 1);
                   haptic.selectionChanged();
-                }}
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
-              </button>
-            </div>
+                } else {
+                  cartStore.removeItem(inCart.id);
+                  haptic.impact('light');
+                }
+              }}
+              onIncrement={() => {
+                useCartStore.getState().updateQuantity(inCart.id, inCart.quantity + 1);
+                haptic.selectionChanged();
+              }}
+            />
             <button
               className="flex-1 py-3 text-[14px] font-semibold press-effect"
               style={{
@@ -498,13 +504,13 @@ export default function ProductDetail() {
               borderRadius: 'var(--storex-radius-md)',
               color: '#fff',
             }}
-            disabled={!product.in_stock || (variantTypes.length > 0 && !allVariantsSelected)}
+            disabled={product.in_stock === false || needsVariant}
             onClick={handleAddToCart}
           >
-            {!product.in_stock ? (
+            {product.in_stock === false ? (
               'Hozirda mavjud emas'
-            ) : variantTypes.length > 0 && !allVariantsSelected ? (
-              'Variantni tanlang'
+            ) : needsVariant ? (
+              'Turini tanlang'
             ) : justAdded ? (
               <>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">

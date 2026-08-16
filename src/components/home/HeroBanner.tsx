@@ -1,9 +1,31 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, type NavigateFunction } from 'react-router-dom';
 import type { Banner } from '@/api/types';
+import { isTelegramWebApp, WebApp } from '@/lib/telegram';
 
 interface HeroBannerProps {
   banners: Banner[];
+}
+
+/**
+ * `link_url` is admin free-text — either an absolute URL or an internal app
+ * path — so sniff which it is and route accordingly. Reuses the
+ * WebApp.openLink + window.open fallback pattern from Checkout.tsx (guarded
+ * by isTelegramWebApp) rather than inventing a new one. HomeSections.tsx
+ * has its own copy of this for the mid-page banner (not imported, to avoid
+ * a non-component export tripping react-refresh/only-export-components).
+ */
+function openBannerLink(linkUrl: string | undefined, navigate: NavigateFunction) {
+  if (!linkUrl) return;
+  if (/^https?:\/\//i.test(linkUrl)) {
+    if (isTelegramWebApp) {
+      WebApp.openLink(linkUrl);
+    } else {
+      window.open(linkUrl, '_blank');
+    }
+  } else {
+    navigate(linkUrl.startsWith('/') ? linkUrl : `/${linkUrl}`);
+  }
 }
 
 export function HeroBanner({ banners }: HeroBannerProps) {
@@ -11,6 +33,9 @@ export function HeroBanner({ banners }: HeroBannerProps) {
   const navigate = useNavigate();
   const touchStartX = useRef(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
+  const carouselRef = useRef<HTMLDivElement>(null);
+  const [isInView, setIsInView] = useState(true);
+  const [isPageVisible, setIsPageVisible] = useState(true);
 
   const goTo = useCallback(
     (index: number) => {
@@ -19,13 +44,36 @@ export function HeroBanner({ banners }: HeroBannerProps) {
     [banners.length],
   );
 
+  // Pause autoplay while the carousel has scrolled out of the viewport —
+  // otherwise the interval keeps ticking for a banner nobody can see.
   useEffect(() => {
-    if (banners.length <= 1) return;
+    const el = carouselRef.current;
+    if (!el) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => setIsInView(entry.isIntersecting),
+      { threshold: 0.1 },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  // Pause autoplay while the tab/WebView is backgrounded.
+  useEffect(() => {
+    function handleVisibilityChange() {
+      setIsPageVisible(document.visibilityState === 'visible');
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, []);
+
+  useEffect(() => {
+    if (banners.length <= 1 || !isInView || !isPageVisible) return;
     intervalRef.current = setInterval(() => {
       setCurrent((prev) => (prev + 1) % banners.length);
     }, 4000);
     return () => clearInterval(intervalRef.current);
-  }, [banners.length]);
+  }, [banners.length, isInView, isPageVisible]);
 
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartX.current = e.touches[0].clientX;
@@ -40,11 +88,7 @@ export function HeroBanner({ banners }: HeroBannerProps) {
   };
 
   const handleClick = (banner: Banner) => {
-    if (banner.link_type === 'product' && banner.link_value) {
-      navigate(`/product/${banner.link_value}`);
-    } else if (banner.link_type === 'category' && banner.link_value) {
-      navigate(`/catalog/${banner.link_value}`);
-    }
+    openBannerLink(banner.link_url, navigate);
   };
 
   if (banners.length === 0) return null;
@@ -52,6 +96,7 @@ export function HeroBanner({ banners }: HeroBannerProps) {
   return (
     <div className="relative mx-4 mt-1 mb-1">
       <div
+        ref={carouselRef}
         className="relative overflow-hidden"
         style={{ height: 140, borderRadius: 'var(--storex-radius-lg)' }}
         onTouchStart={handleTouchStart}

@@ -38,11 +38,24 @@ export interface Category {
 }
 
 // Products
+// A variant as the backend actually stores it: `{name, sku, price}` on the
+// product's own JSON column, plus two fields ProductResource computes.
+// There is no `type`/`value` pair — those were assumed by an earlier frontend
+// draft and never existed in the data, which left the variant picker rendering
+// blank labels and blocking add-to-cart on every variant product.
 export interface ProductVariant {
+  // The variant's 0-based index within its product's `variants` array.
+  // Zero is a real id — never test this with truthiness (`variant.id ? …`),
+  // or the first variant silently collapses onto the no-variant cart line.
+  // Only stable while the product isn't re-edited; checkout resolves the
+  // variant by `name` server-side, so a stale index can't mis-price an order.
   id: number;
   name: string;
-  type: 'color' | 'size' | 'other';
-  value: string;
+  sku?: string;
+  // The variant's absolute price — what checkout actually charges.
+  price?: number;
+  // `price - product.price`, computed by the backend and omitted when the
+  // variant carries no price of its own.
   extra_price?: number;
   image?: string;
 }
@@ -67,7 +80,7 @@ export interface Product {
   image?: string;
   thumbnail?: string | null;
   images?: string[];
-  rating?: number;
+  reviews_avg_rating?: number;
   reviews_count?: number;
   in_stock?: boolean;
   stock_quantity?: number;
@@ -92,10 +105,14 @@ export interface ProductDetail extends Product {
 }
 
 // Cart
+// A cart line's `product` is either a full catalog Product (normal add-to-cart
+// flow) or a lightweight OrderProductSnapshot (reorder flow, built from an
+// order's own items — see OrderItem below). Only fields both shapes share
+// (name/image/thumbnail/slug) may be relied on when rendering a CartItem.
 export interface CartItem {
   id: string;
   product_id: number;
-  product: Product;
+  product: Product | OrderProductSnapshot;
   quantity: number;
   variant?: ProductVariant;
   price: number;
@@ -124,15 +141,28 @@ export type OrderStatus =
   | 'pending'
   | 'confirmed'
   | 'processing'
-  | 'delivering'
+  | 'shipped'
   | 'delivered'
   | 'cancelled'
-  | 'returned';
+  | 'refunded';
+
+// The backend attaches only a lightweight snapshot of the product to an order
+// item, not a full Product — id/price/category_id are never present. `slug`
+// is currently always sent as null (typed optional, since every existing
+// consumer already treats a missing slug as "no link" via truthiness/`??`
+// checks — null and undefined behave identically there), so any product
+// link built from this must be guarded.
+export interface OrderProductSnapshot {
+  name: LocalizedString;
+  image?: string;
+  thumbnail?: string | null;
+  slug?: string;
+}
 
 export interface OrderItem {
   id: number;
   product_id: number;
-  product: Product;
+  product: OrderProductSnapshot;
   quantity: number;
   variant?: ProductVariant;
   price: number;
@@ -198,8 +228,15 @@ export interface Banner {
   title: string;
   image: string;
   placement: 'home_hero' | 'home_mid' | 'product_detail';
-  link_type: 'product' | 'category' | 'url' | 'none';
+  // `link_type`/`link_value` are declared by an older contract but the backend
+  // never populates them (no matching columns exist) — every consumer must use
+  // `link_url` instead. Kept here in case a future backend revival repopulates
+  // them; nothing in the app currently reads them.
+  link_type?: 'product' | 'category' | 'url' | 'none';
   link_value?: string;
+  // Admin free-text: either an absolute URL or an internal app path. The
+  // banner tap handler sniffs which and routes accordingly.
+  link_url?: string;
 }
 
 // Home page
@@ -290,7 +327,13 @@ export interface PaginatedResponse<T> {
 
 // Delivery slots
 export interface DeliverySlot {
-  id: number;
+  /**
+   * Self-describing composite id, e.g. "2026-08-10_09:00-11:00".
+   * Deliberately a string, not a number: the old positional ids were
+   * regenerated per request, so a stored id meant a different window the
+   * next day. The date is encoded so a persisted slot stays unambiguous.
+   */
+  id: string;
   time: string;
   available: boolean;
 }
@@ -342,8 +385,14 @@ export interface ProductFilters {
   sort?: 'popular' | 'price_asc' | 'price_desc' | 'newest' | 'rating';
   min_price?: number;
   max_price?: number;
-  brands?: string[];
+  // Brand ids. Numbers, not strings — the backend casts and drops anything
+  // non-numeric rather than erroring, so a wrong type fails silently.
+  brands?: number[];
+  // Minimum average rating, 1–5. Products with no approved review never match.
   rating?: number;
+  // Attribute name -> selected values, e.g. `{ Rang: ['Qora', 'Oq'] }`.
+  // Values under one key are OR'd; separate keys are AND'd.
+  attributes?: Record<string, string[]>;
   discount_only?: boolean;
   q?: string;
 }

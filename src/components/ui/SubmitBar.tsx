@@ -18,7 +18,7 @@ interface SubmitBarProps {
 export function SubmitBar({ text, onClick, disabled, loading, hint, aboveTabBar }: SubmitBarProps) {
   return (
     <div
-      className="fixed left-0 right-0 z-40"
+      className="fixed left-0 right-0 z-40 mx-auto max-w-(--storex-app-max-width)"
       style={{
         bottom: aboveTabBar
           ? 'calc(var(--storex-tabbar-height, 56px) + env(safe-area-inset-bottom, 0px))'
@@ -29,7 +29,7 @@ export function SubmitBar({ text, onClick, disabled, loading, hint, aboveTabBar 
         paddingRight: 16,
         backgroundColor: 'var(--tg-theme-bg-color, #fff)',
         borderTop: '1px solid var(--storex-border)',
-        boxShadow: '0 -4px 16px rgba(0, 0, 0, 0.04)',
+        boxShadow: '0 -4px 16px color-mix(in srgb, var(--tg-theme-text-color) 4%, transparent)',
       }}
     >
       {hint && (
