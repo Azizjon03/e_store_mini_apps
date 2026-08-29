@@ -1,9 +1,9 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { getOrderDetail } from '@/api/storefront';
+import { getOrderDetail, getPaymentMethods } from '@/api/storefront';
 import { formatPrice, formatDateTime, t } from '@/lib/format';
 import { formatAddressLine } from '@/lib/address';
-import { getPaymentMethodLabel } from '@/lib/payment';
+import { resolvePaymentLabel } from '@/lib/payment';
 import { useHaptic } from '@/hooks/useHaptic';
 import { useBackButton } from '@/hooks/useBackButton';
 import { showToast } from '@/lib/toast';
@@ -61,6 +61,14 @@ export default function OrderDetail() {
     queryKey: ['order', orderId],
     queryFn: () => getOrderDetail(Number(orderId)),
     enabled: !!orderId,
+  });
+
+  // Same key checkout uses, so on the usual path (order placed, then opened)
+  // this is served from cache. It is the only localised source for the
+  // method's name — the order itself carries just the raw id.
+  const { data: paymentMethods } = useQuery({
+    queryKey: ['payment-methods'],
+    queryFn: getPaymentMethods,
   });
 
   const handleReorder = () => {
@@ -358,7 +366,11 @@ export default function OrderDetail() {
                 <path d="M4 10h3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
               </svg>
               <p className="text-[13px]" style={{ color: 'var(--tg-theme-text-color)' }}>
-                {getPaymentMethodLabel(order.payment_method)}
+                {resolvePaymentLabel(
+                  order.payment_method,
+                  paymentMethods,
+                  order.payment_method_name,
+                )}
               </p>
             </div>
           </div>

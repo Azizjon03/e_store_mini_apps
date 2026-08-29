@@ -8,8 +8,11 @@ import { useBackButton } from '@/hooks/useBackButton';
 import { useHaptic } from '@/hooks/useHaptic';
 import { formatPrice, t } from '@/lib/format';
 import { formatAddressLine } from '@/lib/address';
+import { paymentIconUrl } from '@/lib/payment';
 import { showToast } from '@/lib/toast';
 import { Spinner } from '@/components/ui/Spinner';
+import { Skeleton } from '@/components/ui/Skeleton';
+import type { PaymentMethodOption } from '@/api/types';
 import { isTelegramWebApp, WebApp } from '@/lib/telegram';
 import { SubmitBar } from '@/components/ui/SubmitBar';
 import { RadioRow } from '@/components/ui/RadioRow';
@@ -34,7 +37,10 @@ export default function Checkout() {
 
   const [userSelectedAddress, setUserSelectedAddress] = useState<number | null>(null);
   const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>('delivery');
-  const [paymentMethod, setPaymentMethod] = useState<string>('click');
+  // Starts empty on purpose: which methods this store can process is only
+  // known once GET /checkout/payment-methods answers, and a hardcoded guess
+  // ('click') named a provider this store does not even offer.
+  const [paymentMethod, setPaymentMethod] = useState<string | null>(null);
   const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null);
   const [selectedPickupPointId, setSelectedPickupPointId] = useState<number | null>(null);
   const [notes, setNotes] = useState('');
@@ -50,7 +56,7 @@ export default function Checkout() {
     queryFn: getDeliverySlots,
   });
 
-  const { data: paymentMethods } = useQuery({
+  const { data: paymentMethods, isLoading: paymentMethodsLoading } = useQuery({
     queryKey: ['payment-methods'],
     queryFn: getPaymentMethods,
   });
@@ -133,20 +139,21 @@ export default function Checkout() {
   }, [deliveryFeeFor, deliveryMethod, setDeliveryCost]);
 
 
-  // `paymentMethod` starts as a guess made before the store's methods are
-  // known. The server validates against the very list this endpoint returns,
-  // so a selection that isn't on it can only ever fail — resolve to a real one
+  // The server validates against the very list this endpoint returns, so a
+  // selection that isn't on it can only ever fail — resolve to a real one
   // rather than storing the correction, which would fight the user's own taps.
+  // `null` until the list arrives: nothing is submittable before then.
   const availableMethods = (paymentMethods ?? []).filter((m) => m.available);
   const effectivePaymentMethod =
-    availableMethods.some((m) => m.id === paymentMethod)
+    paymentMethod !== null && availableMethods.some((m) => m.id === paymentMethod)
       ? paymentMethod
-      : (availableMethods[0]?.id ?? paymentMethod);
+      : (availableMethods[0]?.id ?? null);
 
   const checkoutMutation = useMutation({
     mutationFn: async () => {
       if (needsAddress && selectedAddress === null) throw new Error('No address selected');
       if (needsPickupPoint && selectedPickupPointId === null) throw new Error('No pickup point selected');
+      if (effectivePaymentMethod === null) throw new Error('No payment method available');
 
       // The cart is local-only while browsing; the backend reads its own
       // server-side cart at checkout, so we push the items first.
@@ -190,7 +197,11 @@ export default function Checkout() {
     onSuccess: (data) => {
       haptic.impact('heavy');
       clear();
-      if (data.payment_url && effectivePaymentMethod !== 'cash') {
+      // The presence of a payment_url is the signal, not the method's id: the
+      // backend returns a redirect only for providers that have a gateway to
+      // redirect to (cash on delivery returns none), so this stays correct for
+      // any provider the store adds later.
+      if (data.payment_url) {
         if (isTelegramWebApp) {
           WebApp.openLink(data.payment_url);
         } else {
@@ -216,7 +227,10 @@ export default function Checkout() {
     items.length > 0
     && !checkoutMutation.isPending
     && (!needsAddress || selectedAddress !== null)
-    && (!needsPickupPoint || selectedPickupPointId !== null);
+    && (!needsPickupPoint || selectedPickupPointId !== null)
+    // The order cannot be placed without a method the store can process, and
+    // that set is only known once the list has answered.
+    && effectivePaymentMethod !== null;
 
   const handleSubmit = useCallback(() => {
     if (!canSubmit) return;
@@ -498,21 +512,33 @@ export default function Checkout() {
             To'lov usuli
           </p>
           <div className="flex flex-col gap-2">
-            {availableMethods.map((method) => {
-              const isSelected = effectivePaymentMethod === method.id;
-              return (
-                <RadioRow
-                  key={method.id}
-                  selected={isSelected}
-                  onClick={() => {
-                    setPaymentMethod(method.id);
-                    haptic.selectionChanged();
-                  }}
-                  icon={<PaymentIcon methodId={method.id} isSelected={isSelected} />}
-                  title={method.name}
-                />
-              );
-            })}
+            {paymentMethodsLoading ? (
+              <Skeleton className="h-[52px] w-full rounded-(--storex-radius-md)" />
+            ) : availableMethods.length === 0 ? (
+              // Nothing hardcoded can stand in here: if the store advertises no
+              // method, there is none to place the order with. Say so instead
+              // of showing an empty box under a heading.
+              <p className="text-[13px]" style={{ color: 'var(--tg-theme-hint-color)' }}>
+                Do'konda hozircha faol to'lov usuli yo'q. Iltimos, do'kon bilan
+                bog'laning.
+              </p>
+            ) : (
+              availableMethods.map((method) => {
+                const isSelected = effectivePaymentMethod === method.id;
+                return (
+                  <RadioRow
+                    key={method.id}
+                    selected={isSelected}
+                    onClick={() => {
+                      setPaymentMethod(method.id);
+                      haptic.selectionChanged();
+                    }}
+                    icon={<PaymentIcon method={method} isSelected={isSelected} />}
+                    title={method.name}
+                  />
+                );
+              })
+            )}
           </div>
         </div>
       </section>
@@ -649,16 +675,33 @@ export default function Checkout() {
             ? 'Avval manzilni tanlang'
             : needsPickupPoint && selectedPickupPointId === null
               ? 'Avval olib ketish nuqtasini tanlang'
-              : undefined
+              // Only after the list has answered — while it is in flight the
+              // button is disabled too, but there is nothing to warn about yet.
+              : effectivePaymentMethod === null && !paymentMethodsLoading
+                ? "To'lov usuli mavjud emas"
+                : undefined
         }
       />
     </div>
   );
 }
 
-function PaymentIcon({ methodId, isSelected }: { methodId: string; isSelected: boolean }) {
+/**
+ * The store's own artwork wins when it sends a usable one. Everything below
+ * that is decoration only: the banknote is drawn for the id the enum has
+ * always called `cash`, and every other method — including any provider added
+ * later — gets the neutral card. Nothing here decides *which* methods exist;
+ * that list comes from the backend alone.
+ */
+function PaymentIcon({ method, isSelected }: { method: PaymentMethodOption; isSelected: boolean }) {
   const color = isSelected ? 'var(--storex-primary)' : 'var(--tg-theme-hint-color)';
-  if (methodId === 'cash') {
+  const iconUrl = paymentIconUrl(method.icon);
+
+  if (iconUrl) {
+    return <img src={iconUrl} alt="" width={20} height={20} className="object-contain" />;
+  }
+
+  if (method.id === 'cash') {
     return (
       <span style={{ color }}>
         <svg width="20" height="20" viewBox="0 0 20 20" fill="none">

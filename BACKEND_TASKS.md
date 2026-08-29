@@ -308,6 +308,19 @@ Frontend tomonda e'tibor bering: `src/api/types.ts`dagi `Review` interfeysi hozi
 
 ---
 
+## 12. To'lov usullari — frontend endi to'liq backendga tayanadi
+
+Mini-app'dan to'lov turlarining har qanday qattiq ro'yxati olib tashlandi: `GET /storefront/checkout/payment-methods` nima qaytarsa — o'sha chiziladi, id'lari notanish bo'lsa ham. Yangi provayder yoqilganda frontend relizi kerak emas.
+
+Buning uchun backenddan quyidagilar kutiladi:
+
+- [ ] **`icon` — yo'q fayl nomi qaytarmoqda.** Hozir `"cash.svg"` kabi yalang'och nom keladi, lekin `public/` da bunday asset umuman yo'q. Frontend faqat haqiqiy URL'ni (`https://…` yoki `/…`) `<img>` ga qo'yadi, aks holda o'zining neytral belgisini chizadi. Ya'ni **to'liq URL yuborilsin yoki maydon butunlay olib tashlansin** — hozirgi holatda u shunchaki o'lik maydon.
+- [ ] **`GET /storefront/tg/orders/{id}` — `payment_method_name` yo'q.** `OrderResource` va `StorefrontOrderResource` faqat xom `payment_method` (`"cash"`) yuboradi. Shu sababli buyurtma sahifasi nomni `checkout/payment-methods` ro'yxatidan qidirishga majbur (qo'shimcha so'rov). `PaymentProvider::label()` allaqachon mavjud — resource'ga `payment_method_name` qo'shilsa, buyurtma o'zi bilan tayyor yorliqni olib yuradi. Do'kon provayderni keyinchalik o'chirsa, eski buyurtmalar uchun yagona ishonchli manba ham shu bo'ladi.
+
+Eslatma (kod emas, konfiguratsiya): hozir bu do'konda faqat `cash` faol. Click/Payme checkout'da ko'rinishi uchun `company_payment_providers` jadvalida `is_enabled = true` va gateway kalitlari bilan yozuv bo'lishi kerak.
+
+---
+
 ## Yangi Endpointlar
 
 | # | Endpoint | Method | Tavsif |
@@ -331,6 +344,8 @@ Frontend tomonda e'tibor bering: `src/api/types.ts`dagi `Review` interfeysi hozi
 | 6 | `/tg/profile` | +stats{} |
 | 7 | `/tg/addresses` | +lat/lng required |
 | 8 | `/products/{product}` (detail) | +reviews[] (faqat detail, katalog ro'yxatida yo'q) (BAJARILDI ✅) |
+| 9 | `/tg/checkout/payment-methods` | `icon` — to'liq URL yoki olib tashlash (12-bo'lim) |
+| 10 | `/tg/orders/{id}` | +payment_method_name (12-bo'lim) |
 
 ---
 
