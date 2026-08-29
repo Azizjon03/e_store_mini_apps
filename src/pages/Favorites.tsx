@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getFavorites, removeFromFavorites } from '@/api/storefront';
 import { PageLayout } from '@/components/layout/PageLayout';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { NetworkError } from '@/components/ui/NetworkError';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { formatPrice, t } from '@/lib/format';
 import { useHaptic } from '@/hooks/useHaptic';
@@ -15,7 +16,7 @@ export default function Favorites() {
   const queryClient = useQueryClient();
   const addItem = useCartStore((s) => s.addItem);
 
-  const { data: favorites, isLoading } = useQuery({
+  const { data: favorites, isLoading, isError, refetch } = useQuery({
     queryKey: ['favorites'],
     queryFn: getFavorites,
   });
@@ -60,6 +61,8 @@ export default function Favorites() {
             <Skeleton key={i} className="h-24 w-full" />
           ))}
         </div>
+      ) : isError && !favorites ? (
+        <NetworkError fullScreen={false} onRetry={() => refetch()} />
       ) : !favorites || favorites.length === 0 ? (
         <EmptyState
           icon="❤️"
