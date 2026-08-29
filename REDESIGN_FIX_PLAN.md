@@ -4,7 +4,7 @@
 
 ---
 
-## Bajarilish holati (2026-08-16)
+## Bajarilish holati (2026-08-29)
 
 | Bosqich | Holat | Branch |
 |---|---|---|
@@ -12,11 +12,11 @@
 | 2 — Backend yaxlitligi | ✅ Bajarildi | `fix/storefront-integrity` (backend) |
 | 3 — Pul aniqligi | ✅ Bajarildi | frontend branchida |
 | 4 — Dizayn tizimi | ✅ Bajarildi (ko'z bilan tekshirilmagan) | frontend branchida |
-| 5 — Redizayn | 🔸 5 ekrandan 1 tasi (Home) | frontend branchida |
+| 5 — Redizayn | 🔸 5 ekrandan 2 tasi (Home, ProductDetail) | `main` ga merge qilindi |
 
 **Tekshiruv:** frontend `lint` + `build` toza · backend `php artisan test` → **618 test o'tdi, 2107 assertion** (bitta jarayonda, ketma-ket; parallel ishga tushirish bitta test bazasini bo'lishgani uchun qarama-qarshi natija beradi) · **brauzerda uchta QA to'lqini**: 360×640 da to'liq sotib olish yo'li, keyin 1440/1024/768/600/480 kengliklarida ustun tekshiruvi, yorug' va qorong'i temada. Ikkita buyurtma uchidan-uchiga yaratildi va checkout summasi buyurtma summasiga aynan teng chiqdi.
 
-**PR ochildi, merge qilinmadi:** frontend [#3](https://github.com/Azizjon03/e_store_mini_apps/pull/3) · backend [#26](https://github.com/Azizjon03/e_store_back/pull/26). Backend avval merge qilinishi kerak — frontend tuzatishlarining bir qismi shu branch qo'shgan maydonlarni o'qiydi. `main` ga merge avtomatik prodakshnga chiqaradi.
+**PR holati:** frontend [#3](https://github.com/Azizjon03/e_store_mini_apps/pull/3) va backend [#26](https://github.com/Azizjon03/e_store_back/pull/26) merge qilindi. Ochiq qolganlari quyidagi jadvalda. `main` ga merge avtomatik prodakshnga chiqaradi.
 
 ### Yopilgan bandlar
 
@@ -52,12 +52,23 @@ Barcha P0 · P1-1..P1-6 · P2-1..P2-10 · P3-1, P3-2, P3-4, P3-6, P3-7 · R-1, R
 | `ManagerAuthService` va admin `UserController` telefonni `AuthService` orqali o'tkazmaydi | ⏸ Ochiq |
 | Admin JSON API `/{company}/products/{product}` — Laravel pozitsion bog'lash tufayli `$id` ga kompaniya id'si tushadi | ⏸ Storefront'ga tegmaydi, alohida ish |
 
+### 2026-08-29 sessiyasida yopilganlar
+
+| Ish | PR |
+|---|---|
+| Home birinchi so'rov yiqilsa abadiy skelet qolardi — endi xato ekrani + qayta urinish, va so'rovlar 3 marta backoff bilan qayta uriniladi | [#5](https://github.com/Azizjon03/e_store_mini_apps/pull/5) ✅ merge |
+| Kartadagi "Sotib olish" hech qachon savatga qo'shmasdi (API deyarli har mahsulotga `variants` yuboradi) — endi variantsiz/bitta variantli darhol qo'shiladi, 2+ variant karta ustidagi sheet'da tanlanadi | [#5](https://github.com/Azizjon03/e_store_mini_apps/pull/5) ✅ merge |
+| To'lov turlari to'liq backenddan — frontenddagi yorliq jadvali, `'click'` defolti, id bo'yicha ikonka va `!== 'cash'` sharti olib tashlandi | [#6](https://github.com/Azizjon03/e_store_mini_apps/pull/6) ⏳ ochiq |
+| Tarmoq uzilganda 9 ta ekran yolg'on "bo'sh" holat ko'rsatardi (katalog, qidiruv, buyurtmalar, sevimlilar, manzillar, buyurtma detali, checkout manzil bloki, manzil tahriri) | [#7](https://github.com/Azizjon03/e_store_mini_apps/pull/7) ⏳ ochiq |
+
+**Demo rasmlar masalasi yopildi:** yangi seed har mahsulotga `image` / `images[]` / `thumbnail` beradi (picsum.photos), ilgarigi "33 tadan 0 tasi" holati emas.
+
 ### Hali qilinmagan
 
 - **Haqiqiy Telegram klientida tekshirish** — QA oddiy brauzerda haydaldi, `--tg-theme-*` palitrasi qo'lda kiritilgan holda. Telegram WebView'ining o'z xatti-harakati (native back tugmasi, haptika, tema almashuvi) sinalmagan.
-- **5-bosqich: qolgan 4 ekran redizayni** — ProductDetail → Cart → Checkout → Catalog.
+- **5-bosqich: qolgan 3 ekran redizayni** — Cart → Checkout → Catalog. (ProductDetail 2026-08-16 da qilindi.)
 - **`DESIGN_STANDARD.md` §6 ziddiyati** — standart 56px dumaloq kategoriya ikonkasini belgilaydi, kod fold ishidan keyin 44px squircle. Uchinchi qiymat kiritmaslik uchun ataylab tegilmadi.
-- **Demo ma'lumotida mahsulot rasmlari umuman yo'q** — 33 tadan 0 tasi. Bu kod nuqsoni emas, lekin har qanday dizayn taklifi maketda haqiqatdan chiroyliroq ko'rinishiga sabab bo'ladi.
+- **ProductCard sevimlilar tugmasi 28px** — 48px tap-target minimumidan past. ProductDetail'da bu allaqachon hal qilingan (ko'rinadigan doira 36px, tugmaning o'zi 48×48); shu naqshni kartaga ko'chirish kerak, lekin karta burchagida 44px maydon rasmning bir qismini yutadi — vizual qaror talab qiladi.
 
 ---
 
