@@ -4,6 +4,7 @@ import { useInfiniteQuery } from '@tanstack/react-query';
 import { getOrders } from '@/api/storefront';
 import { PageLayout } from '@/components/layout/PageLayout';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { NetworkError } from '@/components/ui/NetworkError';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { Chip } from '@/components/ui/Chip';
 import { formatPrice, formatDate } from '@/lib/format';
@@ -66,7 +67,7 @@ export default function Orders() {
   // Infinite scroll, same pagination pattern as useInfiniteProducts: each
   // filter keeps its own query key/cache so switching tabs doesn't refetch
   // pages already loaded for a previously active filter.
-  const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
+  const { data, isLoading, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
     queryKey: ['orders', activeFilter],
     queryFn: ({ pageParam }) => getOrders(pageParam, activeFilter),
     getNextPageParam: (lastPage) => {
@@ -154,6 +155,11 @@ export default function Orders() {
             <Skeleton key={i} className="h-35 w-full rounded-(--storex-radius-md)" />
           ))}
         </div>
+      ) : isError && orders.length === 0 ? (
+        // Not "Buyurtmalar yo'q": telling a returning customer their order
+        // history is empty when the request merely failed is a lie that
+        // costs trust exactly where trust matters most.
+        <NetworkError fullScreen={false} onRetry={() => refetch()} />
       ) : orders.length === 0 ? (
         <EmptyState
           icon="🧾"

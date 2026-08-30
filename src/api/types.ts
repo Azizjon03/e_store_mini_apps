@@ -238,7 +238,13 @@ export interface Address {
 export interface OrderDetail extends Order {
   shipping_address: Address;
   delivery_method: 'delivery' | 'pickup';
-  payment_method: 'click' | 'payme' | 'cash';
+  /**
+   * Deliberately `string`, not a union of the providers that happen to exist
+   * today: which methods a store can process is the store's own configuration
+   * and is served by GET /checkout/payment-methods. Naming them here would
+   * mean a frontend release every time an operator enables a new provider.
+   */
+  payment_method: string;
   payment_method_name?: string;
   payment_method_icon?: string;
   estimated_delivery?: string;

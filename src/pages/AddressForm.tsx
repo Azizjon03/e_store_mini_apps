@@ -6,15 +6,18 @@ import { useHaptic } from '@/hooks/useHaptic';
 import { showToast } from '@/lib/toast';
 import { SubmitBar } from '@/components/ui/SubmitBar';
 import { Chip } from '@/components/ui/Chip';
+import { NetworkError } from '@/components/ui/NetworkError';
+import { EmptyState } from '@/components/ui/EmptyState';
 import type { Address } from '@/api/types';
 
 const LABELS = ['Uy', 'Ish', 'Boshqa'];
 
 export default function AddressForm() {
   const { addressId } = useParams<{ addressId: string }>();
+  const navigate = useNavigate();
   const isEdit = !!addressId;
 
-  const { data: addresses, isLoading } = useQuery({
+  const { data: addresses, isLoading, isError, refetch } = useQuery({
     queryKey: ['addresses'],
     queryFn: getAddresses,
     enabled: isEdit,
@@ -27,6 +30,28 @@ export default function AddressForm() {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: 'var(--tg-theme-bg-color)' }}>
         <span className="text-sm" style={{ color: 'var(--tg-theme-hint-color)' }}>Yuklanmoqda...</span>
+      </div>
+    );
+  }
+
+  // Both branches below exist because an unresolved `existing` silently
+  // turns the edit form into a *create* form: the fields render empty and
+  // saving adds a second address instead of changing the one that was
+  // opened. A failed request and a deleted address are different stories,
+  // so they get different screens.
+  if (isEdit && isError) {
+    return <NetworkError onRetry={() => refetch()} />;
+  }
+
+  if (isEdit && !existing) {
+    return (
+      <div className="min-h-screen" style={{ backgroundColor: 'var(--tg-theme-bg-color)' }}>
+        <EmptyState
+          icon="📍"
+          title="Manzil topilmadi"
+          description="Bu manzil o'chirilgan bo'lishi mumkin."
+          action={{ label: 'Manzillarga qaytish', onClick: () => navigate('/profile/addresses') }}
+        />
       </div>
     );
   }
