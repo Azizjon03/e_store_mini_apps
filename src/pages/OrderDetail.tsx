@@ -8,6 +8,7 @@ import { useHaptic } from '@/hooks/useHaptic';
 import { useBackButton } from '@/hooks/useBackButton';
 import { showToast } from '@/lib/toast';
 import { Spinner } from '@/components/ui/Spinner';
+import { NetworkError } from '@/components/ui/NetworkError';
 import { PageLayout } from '@/components/layout/PageLayout';
 import { useCartStore, makeItemId } from '@/store/cartStore';
 import type { CartItem, Order, OrderStatus } from '@/api/types';
@@ -57,7 +58,7 @@ export default function OrderDetail() {
   const haptic = useHaptic();
   useBackButton();
 
-  const { data: order, isLoading } = useQuery({
+  const { data: order, isLoading, isError, refetch } = useQuery({
     queryKey: ['order', orderId],
     queryFn: () => getOrderDetail(Number(orderId)),
     enabled: !!orderId,
@@ -107,7 +108,19 @@ export default function OrderDetail() {
     );
   }
 
-  if (!order) return null;
+  // A failed fetch rendered literally nothing: a blank screen with no
+  // explanation, no retry and — outside Telegram, where there is no native
+  // back button — no way off it either. The header stays so there always is.
+  if (isError || !order) {
+    return (
+      <PageLayout showSearch={false}>
+        <div className="px-4 py-4 flex items-center gap-3" style={{ backgroundColor: 'var(--tg-theme-bg-color)' }}>
+          {backButton}
+        </div>
+        <NetworkError fullScreen={false} onRetry={() => refetch()} />
+      </PageLayout>
+    );
+  }
 
   const currentStatus = getStatusConfig(order.status);
   const currentStatusIndex = STATUS_ORDER.indexOf(order.status);

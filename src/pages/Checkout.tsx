@@ -46,7 +46,12 @@ export default function Checkout() {
   const [notes, setNotes] = useState('');
   const [showItems, setShowItems] = useState(false);
 
-  const { data: addresses, isLoading: addressesLoading } = useQuery({
+  const {
+    data: addresses,
+    isLoading: addressesLoading,
+    isError: addressesFailed,
+    refetch: refetchAddresses,
+  } = useQuery({
     queryKey: ['addresses'],
     queryFn: getAddresses,
   });
@@ -408,6 +413,27 @@ export default function Checkout() {
 
               {addressesLoading ? (
                 <Spinner className="py-4" />
+              ) : addressesFailed ? (
+                // Falling through to "Manzil topilmadi" told a customer who
+                // has addresses that they have none, one tap away from
+                // creating a duplicate. Compact on purpose: this is one
+                // section of the checkout, not the whole screen.
+                <div className="flex flex-col items-start gap-2 py-2">
+                  <p className="text-[13px]" style={{ color: 'var(--tg-theme-hint-color)' }}>
+                    Manzillarni yuklab bo'lmadi.
+                  </p>
+                  <button
+                    className="px-4 py-2 text-[13px] font-medium press-effect"
+                    style={{
+                      backgroundColor: 'var(--tg-theme-secondary-bg-color)',
+                      color: 'var(--tg-theme-text-color)',
+                      borderRadius: 'var(--storex-radius-sm)',
+                    }}
+                    onClick={() => refetchAddresses()}
+                  >
+                    Qayta urinish
+                  </button>
+                </div>
               ) : addresses && addresses.length > 0 ? (
                 <div className="flex flex-col gap-2">
                   {addresses.map((addr) => {

@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getAddresses, deleteAddress } from '@/api/storefront';
 import { PageLayout } from '@/components/layout/PageLayout';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { NetworkError } from '@/components/ui/NetworkError';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { useHaptic } from '@/hooks/useHaptic';
 import { showToast } from '@/lib/toast';
@@ -15,7 +16,7 @@ export default function Addresses() {
   const { showConfirm } = useTelegram();
   const queryClient = useQueryClient();
 
-  const { data: addresses, isLoading } = useQuery({
+  const { data: addresses, isLoading, isError, refetch } = useQuery({
     queryKey: ['addresses'],
     queryFn: getAddresses,
   });
@@ -71,6 +72,8 @@ export default function Addresses() {
               <Skeleton key={i} className="h-20 w-full" />
             ))}
           </div>
+        ) : isError && !addresses ? (
+          <NetworkError fullScreen={false} onRetry={() => refetch()} />
         ) : !addresses || addresses.length === 0 ? (
           <EmptyState
             icon="📍"

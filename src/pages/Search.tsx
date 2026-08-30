@@ -8,6 +8,7 @@ import { useDebounce } from '@/hooks/useDebounce';
 import { ProductGrid } from '@/components/product/ProductGrid';
 import { Chip } from '@/components/ui/Chip';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { NetworkError } from '@/components/ui/NetworkError';
 
 export default function Search() {
   const navigate = useNavigate();
@@ -31,6 +32,8 @@ export default function Search() {
   const {
     data: results,
     isLoading: isSearching,
+    isError: searchFailed,
+    refetch: retrySearch,
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
@@ -309,6 +312,10 @@ export default function Search() {
             <div className="py-4">
               <ProductGrid products={[]} isLoading skeletonCount={4} />
             </div>
+          ) : searchFailed ? (
+            // "Hech narsa topilmadi" for a failed request reads as a fact
+            // about the catalogue rather than about the connection.
+            <NetworkError fullScreen={false} onRetry={() => retrySearch()} />
           ) : products.length > 0 ? (
             <>
               <p

@@ -8,6 +8,7 @@ import { PageLayout } from '@/components/layout/PageLayout';
 import { ProductGrid } from '@/components/product/ProductGrid';
 import { BottomSheet } from '@/components/ui/BottomSheet';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { NetworkError } from '@/components/ui/NetworkError';
 import { Chip } from '@/components/ui/Chip';
 import { FilterSheet } from '@/components/catalog/FilterSheet';
 import {
@@ -60,7 +61,7 @@ export default function Catalog() {
     [activeCategory, sort, appliedFilters],
   );
 
-  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } =
+  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, isError, refetch } =
     useInfiniteProducts(filters);
 
   const { data: categories } = useQuery({
@@ -187,6 +188,11 @@ export default function Catalog() {
       {/* Product grid */}
       {isLoading ? (
         <ProductGrid products={[]} isLoading skeletonCount={6} />
+      ) : isError && allProducts.length === 0 ? (
+        // A failed fetch used to fall through to "Mahsulotlar topilmadi",
+        // which blames the shopper's own filters for a network problem and
+        // offers "clear filters" as the cure for it.
+        <NetworkError fullScreen={false} onRetry={() => refetch()} />
       ) : allProducts.length === 0 ? (
         <EmptyState
           icon="📦"
